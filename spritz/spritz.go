@@ -1,34 +1,27 @@
 package spritz
 
-import (
-	"fmt"
-	"io"
-	"os"
-)
-
 const (
 	N = 256
 )
 
-type SpritzState struct {
+type state struct {
 	i, j, k, z, a, w byte
 	s                [N]byte
 }
 
-func CreateSpritz() *SpritzState {
-	ans := &SpritzState{w: 1}
-	for i := range ans.s {
-		ans.s[i] = byte(i)
+func initialize(s *state) {
+	s.w = 1
+	for i := range s.s {
+		s.s[i] = byte(i)
 	}
-	return ans
 }
 
-func Absorb(ss *SpritzState, b byte) {
+func absorb(ss *state, b byte) {
 	absorbNibble(ss, b&0x0F)
 	absorbNibble(ss, b>>4)
 }
 
-func AbsorbMany(ss *SpritzState, bs []byte) {
+func absorbMany(ss *state, bs []byte) {
 	for _, b := range bs {
 		absorbNibble(ss, b&0x0F)
 		absorbNibble(ss, b>>4)
@@ -39,7 +32,7 @@ func swap(arr *[N]byte, e1 int, e2 int) {
 	arr[e1], arr[e2] = arr[e2], arr[e1]
 }
 
-func absorbNibble(ss *SpritzState, x byte) {
+func absorbNibble(ss *state, x byte) {
 	if ss.a == N/2 {
 		shuffle(ss)
 	}
@@ -47,7 +40,7 @@ func absorbNibble(ss *SpritzState, x byte) {
 	ss.a++
 }
 
-func AbsorbStop(ss *SpritzState) {
+func absorbStop(ss *state) {
 	if ss.a == N/2 {
 		shuffle(ss)
 	}
@@ -61,7 +54,7 @@ func gcd(e1 int, e2 int) int {
 	return gcd(e2, e1%e2)
 }
 
-func whip(ss *SpritzState) {
+func whip(ss *state) {
 	update(ss, N*2)
 	ss.w++
 	for gcd(int(ss.w), 256) != 1 {
@@ -69,7 +62,7 @@ func whip(ss *SpritzState) {
 	}
 }
 
-func crush(ss *SpritzState) {
+func crush(ss *state) {
 	for v := 0; v < (N / 2); v++ {
 		if ss.s[v] > ss.s[N-1-v] {
 			swap(&ss.s, v, N-1-v)
@@ -77,7 +70,7 @@ func crush(ss *SpritzState) {
 	}
 }
 
-func shuffle(ss *SpritzState) {
+func shuffle(ss *state) {
 	whip(ss)
 	crush(ss)
 	whip(ss)
@@ -86,7 +79,7 @@ func shuffle(ss *SpritzState) {
 	ss.a = 0
 }
 
-func update(ss *SpritzState, amt int) {
+func update(ss *state, amt int) {
 	var mi byte = ss.i
 	var mj byte = ss.j
 	var mk byte = ss.k
@@ -108,7 +101,7 @@ func update(ss *SpritzState, amt int) {
 	ss.k = mk
 }
 
-func Drip(ss *SpritzState) byte {
+func drip(ss *state) byte {
 	if ss.a > 0 {
 		shuffle(ss)
 	}
@@ -117,40 +110,41 @@ func Drip(ss *SpritzState) byte {
 	return ss.z
 }
 
-func DripMany(ss *SpritzState, bs []byte) {
+func dripMany(ss *state, bs []byte) {
 	for idx := range bs {
-		bs[idx] = Drip(ss)
+		bs[idx] = drip(ss)
 	}
 }
 
-func Hash(bits int, strm io.Reader) []byte {
-	bytes := (bits + 7) / 8
-	ans := make([]byte, bytes)
-	ss := CreateSpritz()
+type Hash struct {
+	spritzState state
+	size        int
+}
 
-	buffer := make([]byte, 4096)
-	count, err := strm.Read(buffer)
-	for count >= 0 && err != io.EOF {
-		AbsorbMany(ss, buffer[:count])
-		count, err = strm.Read(buffer)
-	}
-
-	AbsorbStop(ss)
-	Absorb(ss, byte(bytes))
-
-	DripMany(ss, ans)
+func NewHash(bits int) *Hash {
+	ans := &Hash{size: (bits / 8)}
+	initialize(&ans.spritzState)
 	return ans
 }
 
-func main() {
-	for _, fname := range os.Args[1:] {
-		fmt.Printf("%s: ", fname)
-		infile, _ := os.Open(fname)
-		hash := Hash(256, infile)
-		infile.Close()
-		for _, v := range hash {
-			fmt.Printf("%02x", v)
-		}
-		fmt.Println("")
-	}
+func (h *Hash) Write(p []byte) (n int, err error) {
+	absorbMany(&h.spritzState, p)
+	return len(p), nil
 }
+
+func (h *Hash) Sum(b []byte) []byte {
+	absorbStop(&h.spritzState)
+	absorb(&h.spritzState, byte(h.size))
+	for idx := 0; idx < h.size; idx++ {
+		b = append(b, drip(&h.spritzState))
+	}
+        return b
+}
+
+func (h *Hash) Reset() {
+	initialize(&h.spritzState)
+}
+
+func (h *Hash) Size() int { return h.size }
+
+func (h *Hash) BlockSize() int { return 1 }

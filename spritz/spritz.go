@@ -115,36 +115,3 @@ func dripMany(ss *state, bs []byte) {
 		bs[idx] = drip(ss)
 	}
 }
-
-type Hash struct {
-	spritzState state
-	size        int
-}
-
-func NewHash(bits int) *Hash {
-	ans := &Hash{size: (bits / 8)}
-	initialize(&ans.spritzState)
-	return ans
-}
-
-func (h *Hash) Write(p []byte) (n int, err error) {
-	absorbMany(&h.spritzState, p)
-	return len(p), nil
-}
-
-func (h *Hash) Sum(b []byte) []byte {
-	absorbStop(&h.spritzState)
-	absorb(&h.spritzState, byte(h.size))
-	for idx := 0; idx < h.size; idx++ {
-		b = append(b, drip(&h.spritzState))
-	}
-        return b
-}
-
-func (h *Hash) Reset() {
-	initialize(&h.spritzState)
-}
-
-func (h *Hash) Size() int { return h.size }
-
-func (h *Hash) BlockSize() int { return 1 }

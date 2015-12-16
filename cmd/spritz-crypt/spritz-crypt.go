@@ -15,26 +15,26 @@ import (
 
 func encrypt(pw, fn string) {
 	encn := fn + ".spritz"
-	fmt.Println("%s -> %s", fn, encn)
+	fmt.Printf("%s -> %s\n", fn, encn)
 
 	// we need random data for the IV and authentication token
 	var rdata = make([]byte, 8)
 	_, err := rand.Read(rdata)
 	if err != nil {
-		fmt.Println("Couldn't generate random data! %s", err.Error())
+		fmt.Printf("Couldn't generate random data! %s\n", err.Error())
 		return
 	}
 
 	inFile, err := os.Open(fn)
 	if err != nil {
-		fmt.Println("Couldn't open input file! %s", err.Error())
+		fmt.Printf("Couldn't open input file! %s\n", err.Error())
 		return
 	}
 	defer inFile.Close()
 
 	outFile, err := os.OpenFile(encn, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
-		fmt.Println("Couldn't open output file! %s", err.Error())
+		fmt.Printf("Couldn't open output file! %s\n", err.Error())
 		return
 	}
 	defer outFile.Close()
@@ -45,24 +45,24 @@ func encrypt(pw, fn string) {
 	_, err = writer.Write(rdata[4:])                   // write the authentication token
 	_, err2 := writer.Write(spritz.Sum(32, rdata[4:])) // write the hash of the token
 	if err != nil || err2 != nil {
-		fmt.Println("Couldn't write the authentication token!")
+		fmt.Printf("Couldn't write the authentication token!\n")
 		return
 	}
 
 	_, err = io.Copy(writer, inFile)
 	if err != nil {
-		fmt.Println("Couldn't write output file! %s", err.Error())
+		fmt.Printf("Couldn't write output file! %s\n", err.Error())
 		return
 	}
 }
 
 func decrypt(pw, fn string) {
 	decn := fn[:len(fn)-7] // strip off the ".spritz"
-	fmt.Println("%s -> %s", fn, decn)
+	fmt.Printf("%s -> %s\n", fn, decn)
 
 	inFile, err := os.Open(fn)
 	if err != nil {
-		fmt.Println("Couldn't open input file! %s", err.Error())
+		fmt.Printf("Couldn't open input file! %s\n", err.Error())
 		return
 	}
 	defer inFile.Close()
@@ -70,7 +70,7 @@ func decrypt(pw, fn string) {
 	iv := make([]byte, 4)
 	_, err = io.ReadFull(inFile, iv)
 	if err != nil {
-		fmt.Println("Couldn't read the IV! %s", err.Error())
+		fmt.Printf("Couldn't read the IV! %s\n", err.Error())
 		return
 	}
 
@@ -79,7 +79,7 @@ func decrypt(pw, fn string) {
 	authdata := make([]byte, 8)
 	_, err = io.ReadFull(reader, authdata) // read the authentication token
 	if err != nil {
-		fmt.Println("Couldn't read authentication data! %s", err.Error())
+		fmt.Printf("Couldn't read authentication data! %s\n", err.Error())
 		return
 	}
 
@@ -93,14 +93,14 @@ func decrypt(pw, fn string) {
 
 	outFile, err := os.OpenFile(decn, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
-		fmt.Println("Couldn't open output file! %s", err.Error())
+		fmt.Printf("Couldn't open output file! %s\n", err.Error())
 		return
 	}
 	defer outFile.Close()
 
 	_, err = io.Copy(outFile, reader)
 	if err != nil {
-		fmt.Println("Couldn't write output file! %s", err.Error())
+		fmt.Printf("Couldn't write output file! %s\n", err.Error())
 		return
 	}
 }

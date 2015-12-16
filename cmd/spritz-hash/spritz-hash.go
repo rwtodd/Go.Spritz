@@ -1,11 +1,14 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"github.com/waywardcode/crypto/spritz"
 	"io"
 	"os"
 )
+
+var size = flag.Int("size", 256, "size of the hash in bits")
 
 func printHash(hash []byte) {
 	for _, v := range hash {
@@ -14,10 +17,11 @@ func printHash(hash []byte) {
 }
 
 func main() {
-	for _, fname := range os.Args[1:] {
+	flag.Parse()
+	for _, fname := range flag.Args() {
 		fmt.Printf("%s: ", fname)
 		infile, _ := os.Open(fname)
-		shash := spritz.NewHash(256)
+		shash := spritz.NewHash(*size)
 		_, err := io.Copy(shash, infile)
 		infile.Close()
 		if err == nil {

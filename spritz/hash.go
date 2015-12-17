@@ -46,5 +46,5 @@ func (h *Hash) BlockSize() int { return 1 }
 func Sum(bits int, data []byte) []byte {
 	h := NewHash(bits)
 	h.Write(data)
-	return h.Sum(nil)
+	return h.Sum(make([]byte, 0, h.size))
 }

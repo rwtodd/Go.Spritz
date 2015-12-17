@@ -4,6 +4,7 @@
 package main
 
 import (
+        "bytes"
 	"crypto/cipher"
 	"crypto/rand"
 	"fmt"
@@ -84,11 +85,9 @@ func decrypt(pw, fn string) {
 	}
 
 	check := spritz.Sum(32, authdata[:4])
-	for idx, v := range authdata[4:] {
-		if check[idx] != v {
-			fmt.Println("Bad password or corrupted file!")
-			return
-		}
+        if !bytes.Equal(check, authdata[4:]) {
+		fmt.Println("Bad password or corrupted file!")
+		return
 	}
 
 	outFile, err := os.OpenFile(decn, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)

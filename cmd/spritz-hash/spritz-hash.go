@@ -8,27 +8,22 @@ import (
 	"os"
 )
 
-var size = flag.Int("size", 256, "size of the hash in bits")
-
-func printHash(hash []byte) {
-	for _, v := range hash {
-		fmt.Printf("%02x", v)
-	}
-}
+var bitSize = flag.Int("size", 256, "size of the hash in bits")
 
 func main() {
 	flag.Parse()
+	byteSize := (*bitSize + 7) / 8
 	for _, fname := range flag.Args() {
 		fmt.Printf("%s: ", fname)
 		infile, _ := os.Open(fname)
-		shash := spritz.NewHash(*size)
+		shash := spritz.NewHash(*bitSize)
 		_, err := io.Copy(shash, infile)
 		infile.Close()
 		if err == nil {
-			printHash(shash.Sum(nil))
+			computed := shash.Sum(make([]byte, 0, byteSize))
+			fmt.Printf("%x\n", computed)
 		} else {
-			fmt.Print(err.Error())
+			fmt.Println(err.Error())
 		}
-		fmt.Println("")
 	}
 }

@@ -29,8 +29,8 @@ here is some example code for hashing:
     infile, _ := os.Open(fname)
     shash := spritz.NewHash(512)
     io.Copy(shash, infile)
-	  infile.Close()
-		hash := shash.Sum(nil)
+    infile.Close()
+    hash := shash.Sum(nil)
 
 ### Commands
 

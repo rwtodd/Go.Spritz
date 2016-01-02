@@ -39,7 +39,7 @@ func main() {
 	var wg sync.WaitGroup
 	wg.Add(len(flist))
 
-	for _, fname := range flag.Args() {
+	for _, fname := range flist {
 		go func(fname string) {
 			defer wg.Done()
 

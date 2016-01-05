@@ -1,27 +1,33 @@
 package spritz
 
-// ------------------------------------------------------
-// Provide a hashing interface, consistent with the
-// standard packages
-// ------------------------------------------------------
+import "hash"
 
-type Hash struct {
+// Hash provides the hash.Hash interface, consistent with the
+// standard packages.
+type sphash struct {
 	spritzState state
 	size        int
 }
 
-func NewHash(bits int) *Hash {
-	ans := &Hash{size: ((bits + 7) / 8)}
+// NewHash creates a properly-initialized Hash
+// with the number of bits of security desired
+// (e.g. 256-bit hash, 512-bit hash).
+func NewHash(bits int) hash.Hash {
+	ans := &sphash{size: ((bits + 7) / 8)}
 	initialize(&ans.spritzState)
 	return ans
 }
 
-func (h *Hash) Write(p []byte) (n int, err error) {
+// Write absorbs data into the spritz sponge.
+func (h *sphash) Write(p []byte) (n int, err error) {
 	absorbMany(&h.spritzState, p)
 	return len(p), nil
 }
 
-func (h *Hash) Sum(b []byte) []byte {
+// Sum generates the hash based on the data absorbed
+// so far. It is possible to then continue feeding
+// the hash and generate additional sums.
+func (h *sphash) Sum(b []byte) []byte {
 	// Make a copy of the internal state so that the caller
 	// can keep writing and summing.
 	state := h.spritzState
@@ -34,17 +40,23 @@ func (h *Hash) Sum(b []byte) []byte {
 	return b
 }
 
-func (h *Hash) Reset() {
+// Reset puts the hash in a known initial state, so
+// that it can be re-used on another dataset.
+func (h *sphash) Reset() {
 	initialize(&h.spritzState)
 }
 
-func (h *Hash) Size() int { return h.size }
+// Size gives the size of the computed hash, in bytes.
+func (h *sphash) Size() int { return h.size }
 
-func (h *Hash) BlockSize() int { return 1 }
+// BlockSize is not relevant for spritz, so this method
+// returns 1.
+func (h *sphash) BlockSize() int { return 1 }
 
-// Sum returns the hash of the given data.
+// Sum returns the hash of the given data, sized to
+// the given number of bits.
 func Sum(bits int, data []byte) []byte {
 	h := NewHash(bits)
 	h.Write(data)
-	return h.Sum(make([]byte, 0, h.size))
+	return h.Sum(make([]byte, 0, h.Size()))
 }

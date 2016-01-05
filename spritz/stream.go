@@ -17,6 +17,12 @@ func (s *state) XORKeyStream(dst, src []byte) {
 	}
 }
 
+// NewStream creates a cipher.Stream instance for
+// a spritz cipher primed with a password and an
+// initialization vector.
+//
+// The password string will be hashed to 256-bits, and the
+// initialization vector can be as long as desired.
 func NewStream(password string, iv []byte) cipher.Stream {
 	st := new(state)
 	initialize(st)

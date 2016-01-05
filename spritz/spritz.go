@@ -54,10 +54,7 @@ func absorbStop(ss *state) {
 
 func whip(ss *state) {
 	update(ss, 512)
-	ss.w++
-	if ss.w&1 == 0 {
-		ss.w++
-	}
+	ss.w += 2
 }
 
 func crush(ss *state) {

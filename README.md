@@ -41,7 +41,7 @@ You can get the commands like so:
 
 The hasher is a concurrent program, which will hash up to 8 files at once as it works
 through the list.  It takes a "--size" parameter to get the hash size in bits.  
-The encrypt/decrypt program just works on a single file at a time.  It just takes
+The encrypt/decrypt program is also concurrent.  It just takes
 the pasword on the command line, which isn't ideal, but fine for test code.
 
 [1]: https://github.com/waywardcode/spritz_cipher

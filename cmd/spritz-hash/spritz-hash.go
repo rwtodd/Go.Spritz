@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
@@ -17,7 +16,8 @@ var bitSize = flag.Int("size", 256, "size of the hash in bits")
 var limiter = make(chan struct{}, 8) // limits the number of files we can work on at once
 var wg sync.WaitGroup                // this is how we'll make sure all goroutines are done
 
-func runHash(fname string) {
+// hash performs the actual hash, and prints out the result.
+func hash(fname string) {
 	byteSize := (*bitSize + 7) / 8
 
 	infile, _ := os.Open(fname)
@@ -34,46 +34,33 @@ func runHash(fname string) {
 
 }
 
-// runFiles creates a goroutine to hash a file, or recurses on
-// directories.
-func runFiles(fi os.FileInfo, path string) {
-	if fi.IsDir() {
+// hashFiles creates a goroutine to hash files
+func hashFiles(fname string, fi os.FileInfo, err error) error {
+	if err != nil {
+		fmt.Printf("%s: problem! %s\n", fname, err.Error())
+		return nil // just skip problem files
+	}
 
-		allfiles, err := ioutil.ReadDir(path)
-		if err != nil {
-			fmt.Printf("%s: unable to read directory! %s\n",
-				path, err.Error())
-			return
-		}
-
-		for _, fi := range allfiles {
-			newdir := filepath.Join(path, fi.Name())
-			runFiles(fi, newdir)
-		}
-
-	} else {
-
+	if fi.Mode().IsRegular() {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 
 			limiter <- struct{}{} // take a slot
-			runHash(path)
+			hash(fname)
 			<-limiter // release the slot
-
 		}()
-
 	}
+
+	return nil
 }
 
 func main() {
 	flag.Parse()
 
 	for _, fname := range flag.Args() {
-		fi, err := os.Stat(fname)
-		if err == nil {
-			runFiles(fi, fname)
-		} else {
+		var err = filepath.Walk(fname, hashFiles)
+		if err != nil {
 			fmt.Printf("%s: unable to stat! %s\n", fname, err.Error())
 		}
 	}

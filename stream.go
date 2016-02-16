@@ -1,4 +1,4 @@
-package spritz
+package spritz_go
 
 // ---------------------------------------
 // provide a Stream cipher interface

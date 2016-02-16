@@ -8,7 +8,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"fmt"
-	"github.com/waywardcode/crypto/spritz"
+	spritz "github.com/waywardcode/spritz_go"
 	"io"
 	"os"
 	"strings"

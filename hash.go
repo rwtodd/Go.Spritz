@@ -1,4 +1,4 @@
-package spritz
+package spritz_go
 
 import "hash"
 

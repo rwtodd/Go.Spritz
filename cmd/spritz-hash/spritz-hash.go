@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/waywardcode/crypto/spritz"
+	spritz "github.com/waywardcode/spritz_go"
 )
 
 var bitSize = flag.Int("size", 256, "size of the hash in bits")

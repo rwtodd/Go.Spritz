@@ -1,10 +1,10 @@
-// Spritz provides the sponge-like streaming
+// Spritz_Go provides the sponge-like streaming
 // cipher described in https://people.csail.mit.edu/rivest/pubs/RS14.pdf
 //
 // This package provides an implementation of hash.Hash as well as
 // cipher.Stream.  Therefore, spritz will be easy to use if you are
 // familiar with the way the standard hashes and ciphers work.
-package spritz
+package spritz_go
 
 // nothing in this file is public... it is the internal machinery
 // driving the hash and stream implementations in the other files.

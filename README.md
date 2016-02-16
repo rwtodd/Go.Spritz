@@ -1,5 +1,5 @@
-# crypto
-Golang crypto code... right now I have a spritz cipher (see [RS14.pdf][2])
+# spritz_go
+Golang spritz cipher (see [RS14.pdf][2])
 
 ## Spritz Cipher
 I have implemented the spritz cipher for hashing and encryption in several 
@@ -22,12 +22,14 @@ As I mentioned, it provides standard interfaces, and is
 easy to use if you know golang's standard hashes and streams.  For instance,
 here is some example code for hashing:
 
+    import spritz "github.com/waywardcode/spritz_go"
+
     // 256-bit hash of a byte slice:
-    hash := spritz_go.Sum(256, buffer)
+    hash := spritz.Sum(256, buffer)
     
     // 512-bit hash of a file (ignoring errors for brevity)
     infile, _ := os.Open(fname)
-    shash := spritz_go.NewHash(512)
+    shash := spritz.NewHash(512)
     io.Copy(shash, infile)
     infile.Close()
     hash := shash.Sum(nil)

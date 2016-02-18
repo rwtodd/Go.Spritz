@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -19,16 +20,30 @@ import (
 
 var pw string
 var jobs int
+var outdir string
 
 func init() {
 	flag.StringVar(&pw, "password", "", "the password to use for encryption/decryption")
 	flag.StringVar(&pw, "p", "", "shorthand for --password")
+	flag.StringVar(&outdir, "odir", "", "the output directory")
+	flag.StringVar(&outdir, "o", "", "shorthand for --odir")
 	flag.IntVar(&jobs, "jobs", 8, "number of concurrent files to work on")
 	flag.IntVar(&jobs, "j", 8, "shorthand for --jobs")
 }
 
+func odir(in string) string {
+	// if no odir was specified, don't change the directory
+	if len(outdir) == 0 {
+		return in
+	}
+
+	// otherwise, put the output file in the specified directory
+	base := filepath.Base(in)
+	return filepath.Join(outdir, base)
+}
+
 func encrypt(pw, fn string) {
-	encn := fn + ".spritz"
+	encn := odir(fn + ".spritz")
 	fmt.Printf("%s -> %s\n", fn, encn)
 
 	// we need random data for the IV and authentication token
@@ -71,7 +86,7 @@ func encrypt(pw, fn string) {
 }
 
 func decrypt(pw, fn string) {
-	decn := fn[:len(fn)-7] // strip off the ".spritz"
+	decn := odir(fn[:len(fn)-7]) // strip off the ".spritz"
 	fmt.Printf("%s -> %s\n", fn, decn)
 
 	inFile, err := os.Open(fn)
@@ -121,7 +136,9 @@ func main() {
 	flag.Parse()
 
 	if len(pw) == 0 {
+		fmt.Fprintf(os.Stderr, "Missing password.\n")
 		flag.Usage()
+		return
 	}
 
 	var limiter = make(chan struct{}, jobs)

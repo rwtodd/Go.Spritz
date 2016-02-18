@@ -7,13 +7,25 @@ import (
 	"bytes"
 	"crypto/cipher"
 	"crypto/rand"
+	"flag"
 	"fmt"
-	spritz "github.com/waywardcode/spritz_go"
 	"io"
 	"os"
 	"strings"
 	"sync"
+
+	spritz "github.com/waywardcode/spritz_go"
 )
+
+var pw string
+var jobs int
+
+func init() {
+	flag.StringVar(&pw, "password", "", "the password to use for encryption/decryption")
+	flag.StringVar(&pw, "p", "", "shorthand for --password")
+	flag.IntVar(&jobs, "jobs", 8, "number of concurrent files to work on")
+	flag.IntVar(&jobs, "j", 8, "shorthand for --jobs")
+}
 
 func encrypt(pw, fn string) {
 	encn := fn + ".spritz"
@@ -106,16 +118,17 @@ func decrypt(pw, fn string) {
 }
 
 func main() {
-	if len(os.Args) < 3 {
-		panic("Bad usage!")
+	flag.Parse()
+
+	if len(pw) == 0 {
+		flag.Usage()
 	}
-	pw := os.Args[1]
 
-	var limiter = make(chan struct{}, 8)
+	var limiter = make(chan struct{}, jobs)
 	var wg sync.WaitGroup
-	wg.Add(len(os.Args) - 2)
+	wg.Add(len(flag.Args()))
 
-	for _, fname := range os.Args[2:] {
+	for _, fname := range flag.Args() {
 		go func(fname string) {
 			defer wg.Done()
 

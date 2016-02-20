@@ -18,17 +18,22 @@ import (
 	spritz "github.com/waywardcode/spritz_go"
 )
 
-var pw string
-var jobs int
-var outdir string
+// Command-line switches ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+var pw string        // the password in effect
+var jobs int         // the number of concurrent jobs to run
+var outdir string    // the output directory
+var decryptMode bool // should we decrypt?  Default is to encrypt.
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 func init() {
 	flag.StringVar(&pw, "password", "", "the password to use for encryption/decryption")
 	flag.StringVar(&pw, "p", "", "shorthand for --password")
 	flag.StringVar(&outdir, "odir", "", "the output directory")
 	flag.StringVar(&outdir, "o", "", "shorthand for --odir")
-	flag.IntVar(&jobs, "jobs", 8, "number of concurrent files to work on")
-	flag.IntVar(&jobs, "j", 8, "shorthand for --jobs")
+	flag.IntVar(&jobs, "jobs", 2, "number of concurrent files to work on")
+	flag.IntVar(&jobs, "j", 2, "shorthand for --jobs")
+	flag.BoolVar(&decryptMode, "d", false, "shorthand for --decrypt")
+	flag.BoolVar(&decryptMode, "decrypt", false, "decrypt the files")
 }
 
 func odir(in string) string {
@@ -42,31 +47,33 @@ func odir(in string) string {
 	return filepath.Join(outdir, base)
 }
 
-func encrypt(pw, fn string) {
-	encn := odir(fn + ".spritz")
-	fmt.Printf("%s -> %s\n", fn, encn)
-
+func encrypt(pw, fn string) error {
 	// we need random data for the IV and authentication token
 	var rdata = make([]byte, 8)
 	_, err := rand.Read(rdata)
 	if err != nil {
-		fmt.Printf("%s Couldn't generate random data! %s\n", fn, err.Error())
-		return
+		return err
 	}
 
-	inFile, err := os.Open(fn)
-	if err != nil {
-		fmt.Printf("%s Couldn't open input file! %s\n", fn, err.Error())
-		return
-	}
-	defer inFile.Close()
+	var inFile, outFile *os.File
+	if fn == "-" {
+		inFile, outFile = os.Stdin, os.Stdout
+	} else {
+		encn := odir(fn + ".spritz")
+		fmt.Printf("%s -> %s\n", fn, encn)
 
-	outFile, err := os.OpenFile(encn, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
-	if err != nil {
-		fmt.Printf("%s Couldn't open output file! %s\n", fn, err.Error())
-		return
+		inFile, err = os.Open(fn)
+		if err != nil {
+			return err
+		}
+		defer inFile.Close()
+
+		outFile, err = os.OpenFile(encn, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+		if err != nil {
+			return err
+		}
+		defer outFile.Close()
 	}
-	defer outFile.Close()
 
 	outFile.Write(rdata[:4]) // write the IV unencrypted!
 
@@ -74,33 +81,33 @@ func encrypt(pw, fn string) {
 	_, err = writer.Write(rdata[4:])                   // write the authentication token
 	_, err2 := writer.Write(spritz.Sum(32, rdata[4:])) // write the hash of the token
 	if err != nil || err2 != nil {
-		fmt.Printf("%s Couldn't write the authentication token!\n", fn)
-		return
+		return fmt.Errorf("Couldn't write the authentication token!")
 	}
 
 	_, err = io.Copy(writer, inFile)
-	if err != nil {
-		fmt.Printf("%s Couldn't write output file! %s\n", fn, err.Error())
-		return
-	}
+	return err
 }
 
-func decrypt(pw, fn string) {
-	decn := odir(fn[:len(fn)-7]) // strip off the ".spritz"
-	fmt.Printf("%s -> %s\n", fn, decn)
+func decrypt(pw, fn string) error {
 
-	inFile, err := os.Open(fn)
-	if err != nil {
-		fmt.Printf("%s Couldn't open input file! %s\n", fn, err.Error())
-		return
+	var inFile, outFile *os.File
+	var err error
+
+	// setup the input
+	if fn == "-" {
+		inFile = os.Stdin
+	} else {
+		inFile, err = os.Open(fn)
+		if err != nil {
+			return err
+		}
+		defer inFile.Close()
 	}
-	defer inFile.Close()
 
 	iv := make([]byte, 4)
 	_, err = io.ReadFull(inFile, iv)
 	if err != nil {
-		fmt.Printf("%s Couldn't read the IV! %s\n", fn, err.Error())
-		return
+		return err
 	}
 
 	reader := &cipher.StreamReader{S: spritz.NewStream(pw, iv), R: inFile}
@@ -108,28 +115,36 @@ func decrypt(pw, fn string) {
 	authdata := make([]byte, 8)
 	_, err = io.ReadFull(reader, authdata) // read the authentication token
 	if err != nil {
-		fmt.Printf("%s Couldn't read authentication data! %s\n", fn, err.Error())
-		return
+		return err
 	}
 
 	check := spritz.Sum(32, authdata[:4])
 	if !bytes.Equal(check, authdata[4:]) {
-		fmt.Printf("%s Bad password or corrupted file!\n", fn)
-		return
+		return fmt.Errorf("%s Bad password or corrupted file!", fn)
 	}
 
-	outFile, err := os.OpenFile(decn, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
-	if err != nil {
-		fmt.Printf("%s Couldn't open output file! %s\n", fn, err.Error())
-		return
+	// input looks good, so set up the output
+	if fn == "-" {
+		outFile = os.Stdout
+	} else {
+		var decn string
+		if strings.HasSuffix(fn, ".spritz") {
+			decn = fn[:len(fn)-7]
+		} else {
+			decn = fn + ".decrypted"
+		}
+		decn = odir(decn)
+		fmt.Printf("%s -> %s\n", fn, decn)
+
+		outFile, err = os.OpenFile(decn, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+		if err != nil {
+			return err
+		}
+		defer outFile.Close()
 	}
-	defer outFile.Close()
 
 	_, err = io.Copy(outFile, reader)
-	if err != nil {
-		fmt.Printf("%s Couldn't write output file! %s\n", fn, err.Error())
-		return
-	}
+	return err
 }
 
 func main() {
@@ -141,19 +156,31 @@ func main() {
 		return
 	}
 
+	// select the encryption/decryption function
+	var process func(string, string) error
+	if decryptMode {
+		process = decrypt
+	} else {
+		process = encrypt
+	}
+
+	// no filenames means act as a filter
+	files := flag.Args()
+	if len(files) == 0 {
+		files = append(files, "-")
+	}
+
 	var limiter = make(chan struct{}, jobs)
 	var wg sync.WaitGroup
-	wg.Add(len(flag.Args()))
+	wg.Add(len(files))
 
-	for _, fname := range flag.Args() {
+	for _, fname := range files {
 		go func(fname string) {
 			defer wg.Done()
 
 			limiter <- struct{}{}
-			if strings.HasSuffix(fname, ".spritz") {
-				decrypt(pw, fname)
-			} else {
-				encrypt(pw, fname)
+			if err := process(pw, fname); err != nil {
+				fmt.Fprintf(os.Stderr,"%v\n",err)
 			}
 			<-limiter
 		}(fname)

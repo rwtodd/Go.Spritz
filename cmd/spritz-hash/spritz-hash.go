@@ -11,8 +11,24 @@ import (
 	spritz "github.com/waywardcode/spritz_go"
 )
 
+// Cmdline arguments ~~~~~~~~~~~~~~~~~~~~~~
 var bitSize int
 var jobs int
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+// Global error count ~~~~~~~~~~~~~~~~~~~~~
+var errCount int
+var errMutex sync.Mutex
+
+func incErr() {
+	errMutex.Lock()
+	errCount++
+	errMutex.Unlock()
+
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 func init() {
 	flag.IntVar(&bitSize, "size", 256, "size of the hash in bits")
@@ -25,28 +41,37 @@ var limiter chan struct{} // limits the number of files we can work on at once
 var wg sync.WaitGroup     // this is how we'll make sure all goroutines are done
 
 // hash performs the actual hash, and prints out the result.
-func hash(fname string) {
+func hash(fname string) (err error) {
 	byteSize := (bitSize + 7) / 8
+	var inFile *os.File
+	var outFormat string // how we will format the output
 
-	infile, _ := os.Open(fname)
-	shash := spritz.NewHash(bitSize)
-	_, err := io.Copy(shash, infile)
-	infile.Close()
-
-	if err == nil {
-		computed := shash.Sum(make([]byte, 0, byteSize))
-		fmt.Printf("%s: %x\n", fname, computed)
+	if fname == "-" {
+		inFile = os.Stdin
+		outFormat = "%s%x\n"
+		fname = ""
 	} else {
-		fmt.Printf("%s: %s\n", fname, err.Error())
+		if inFile, err = os.Open(fname); err != nil {
+			return
+		}
+		defer inFile.Close()
+		outFormat = "%s: %x\n"
 	}
 
+	shash := spritz.NewHash(bitSize)
+	if _, err = io.Copy(shash, inFile); err != nil {
+		return
+	}
+
+	computed := shash.Sum(make([]byte, 0, byteSize))
+	fmt.Printf(outFormat, fname, computed)
+	return
 }
 
 // hashFiles creates a goroutine to hash files
 func hashFiles(fname string, fi os.FileInfo, err error) error {
 	if err != nil {
-		fmt.Printf("%s: problem! %s\n", fname, err.Error())
-		return nil // just skip problem files
+		return err
 	}
 
 	if fi.Mode().IsRegular() {
@@ -55,7 +80,10 @@ func hashFiles(fname string, fi os.FileInfo, err error) error {
 			defer wg.Done()
 
 			limiter <- struct{}{} // take a slot
-			hash(fname)
+			if err := hash(fname); err != nil {
+				fmt.Fprintf(os.Stderr, "%v\n", err)
+				incErr()
+			}
 			<-limiter // release the slot
 		}()
 	}
@@ -67,12 +95,26 @@ func main() {
 	flag.Parse()
 	limiter = make(chan struct{}, jobs)
 
-	for _, fname := range flag.Args() {
-		var err = filepath.Walk(fname, hashFiles)
-		if err != nil {
-			fmt.Printf("%s: unable to stat! %s\n", fname, err.Error())
+	args := flag.Args()
+
+	// act as a filter with no args...
+	if len(args) == 0 {
+		if err := hash("-"); err != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", err)
+			incErr()
+		}
+	}
+
+	// process any filenames we were given
+	for _, fname := range args {
+		if err := filepath.Walk(fname, hashFiles); err != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", err)
+			incErr()
 		}
 	}
 
 	wg.Wait() // sit here until everyting is reported
+	if errCount > 0 {
+		os.Exit(1)
+	}
 }

@@ -174,6 +174,8 @@ func main() {
 	var wg sync.WaitGroup
 	wg.Add(len(files))
 
+	var hadErrors bool  // is bool change atomic? surely so... need to check RWT
+
 	for _, fname := range files {
 		go func(fname string) {
 			defer wg.Done()
@@ -181,10 +183,15 @@ func main() {
 			limiter <- struct{}{}
 			if err := process(pw, fname); err != nil {
 				fmt.Fprintf(os.Stderr,"%v\n",err)
+				hadErrors = true
 			}
 			<-limiter
 		}(fname)
 	}
 
 	wg.Wait()
+
+	if hadErrors {
+		os.Exit(1)
+        }
 }

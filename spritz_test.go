@@ -1,4 +1,4 @@
-package spritz_go
+package spritz // import "go.waywardcode.com/spritz"
 
 import (
 	"bytes"

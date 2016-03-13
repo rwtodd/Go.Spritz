@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	spritz "github.com/waywardcode/spritz_go"
+	"go.waywardcode.com/spritz"
 )
 
 // Cmdline arguments ~~~~~~~~~~~~~~~~~~~~~~

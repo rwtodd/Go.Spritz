@@ -16,13 +16,13 @@ encrypting/decrypting files.
 ### Library
 You can get the spritz library by:
 
-    go get github.com/waywardcode/spritz_go
+    go get go.waywardcode.com/spritz
 
 As I mentioned, it provides standard interfaces, and is
 easy to use if you know golang's standard hashes and streams.  For instance,
 here is some example code for hashing:
 
-    import spritz "github.com/waywardcode/spritz_go"
+    import "go.waywardcode.com/spritz"
 
     // 256-bit hash of a byte slice:
     hash := spritz.Sum(256, buffer)
@@ -38,8 +38,8 @@ here is some example code for hashing:
 
 You can get the commands like so:
 
-    go get github.com/waywardcode/spritz_go/cmd/spritz-hash
-    go get github.com/waywardcode/spritz_go/cmd/spritz-crypt
+    go get go.waywardcode.com/spritz/cmd/spritz-hash
+    go get go.waywardcode.com/spritz/cmd/spritz-crypt
 
 The hasher is a concurrent program, which will hash up to 8 files at once as it works
 through the list.  It takes a "--size" parameter to get the hash size in bits.  

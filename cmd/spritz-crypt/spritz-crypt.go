@@ -1,5 +1,4 @@
 // A rudimentary encryptor-decryptor.
-// More options and concurrency are coming.
 
 package main
 
@@ -16,6 +15,7 @@ import (
 	"sync"
 
 	"go.waywardcode.com/spritz"
+	"go.waywardcode.com/ttypass"
 )
 
 // Command-line switches ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -151,9 +151,24 @@ func main() {
 	flag.Parse()
 
 	if len(pw) == 0 {
+		var err error
+
+		var times = 2
+		if decryptMode {
+			times = 1
+		}
+
+		pw, err = ttypass.ReadPassword("Password: ", times)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error reading password: %v\n", err)
+			os.Exit(1)
+		}
+	}
+
+	if len(pw) == 0 {
 		fmt.Fprintf(os.Stderr, "Missing password.\n")
 		flag.Usage()
-		return
+		os.Exit(2)
 	}
 
 	// select the encryption/decryption function
@@ -174,7 +189,7 @@ func main() {
 	var wg sync.WaitGroup
 	wg.Add(len(files))
 
-	var hadErrors bool  // is bool change atomic? surely so... need to check RWT
+	var hadErrors bool // is bool change atomic? surely so... need to check RWT
 
 	for _, fname := range files {
 		go func(fname string) {
@@ -182,7 +197,7 @@ func main() {
 
 			limiter <- struct{}{}
 			if err := process(pw, fname); err != nil {
-				fmt.Fprintf(os.Stderr,"%v\n",err)
+				fmt.Fprintf(os.Stderr, "%v\n", err)
 				hadErrors = true
 			}
 			<-limiter
@@ -193,5 +208,5 @@ func main() {
 
 	if hadErrors {
 		os.Exit(1)
-        }
+	}
 }

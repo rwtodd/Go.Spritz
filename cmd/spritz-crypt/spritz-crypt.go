@@ -15,7 +15,7 @@ import (
 	"sync"
 
 	"go.waywardcode.com/spritz"
-	"go.waywardcode.com/ttypass"
+	"go.waywardcode.com/terminal/password"
 )
 
 // Command-line switches ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -158,7 +158,7 @@ func main() {
 			times = 1
 		}
 
-		pw, err = ttypass.ReadPassword("Password: ", times)
+		pw, err = password.Read("Password: ", times)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error reading password: %v\n", err)
 			os.Exit(1)

@@ -87,6 +87,11 @@ func encrypt(pw, fn string) error {
 	return err
 }
 
+// initDecryption sets up a decryption, by checking that the password
+// is correct, and parsing out the original filename if it's there.
+// It returns the io.Reader to read decrypted bytes, the base
+// *os.File for the caller to close, the filename, and any errors 
+// it encountered.
 func initDecryption(pw, fn string) (io.Reader, *os.File, string, error) {
 	var inFile *os.File
 	var err error
@@ -146,6 +151,7 @@ func check(pw, fn string) error {
         if err != nil {
             return err
         }
+
         fmt.Printf("%s: good file. Unencrypted name is <%s>\n",fn,decn) 
         return nil
 }
@@ -172,7 +178,10 @@ func decrypt(pw, fn string) error {
 	  	   } else {
 			decn = fn + ".decrypted"
 		   }
+                } else {
+                   decn = filepath.Join(filepath.Dir(fn),decn)
                 }
+
 		decn = odir(decn)
 		fmt.Printf("%s -> %s\n", fn, decn)
 

@@ -34,6 +34,9 @@ func (h *sphash) Sum(b []byte) []byte {
 
 	absorbStop(&state)
 	absorb(&state, byte(h.size))
+        if state.a > 0 {
+           shuffle(&state)
+        }
 	for idx := 0; idx < h.size; idx++ {
 		b = append(b, drip(&state))
 	}

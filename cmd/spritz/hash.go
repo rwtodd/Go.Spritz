@@ -13,9 +13,6 @@ import (
 
 // Cmdline arguments ~~~~~~~~~~~~~~~~~~~~~~
 var bitSize int
-var jobs int
-
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 // Global error count ~~~~~~~~~~~~~~~~~~~~~
 var errCount int
@@ -29,16 +26,6 @@ func incErr() {
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-func init() {
-	flag.IntVar(&bitSize, "size", 256, "size of the hash in bits")
-	flag.IntVar(&bitSize, "s", 256, "shorthand for --size")
-	flag.IntVar(&jobs, "jobs", 8, "number of concurrent hashes to compute")
-	flag.IntVar(&jobs, "j", 8, "shorthand for --jobs")
-}
-
-var limiter chan struct{} // limits the number of files we can work on at once
-var wg sync.WaitGroup     // this is how we'll make sure all goroutines are done
 
 // hash performs the actual hash, and prints out the result.
 func hash(fname string) (err error) {
@@ -91,11 +78,16 @@ func hashFiles(fname string, fi os.FileInfo, err error) error {
 	return nil
 }
 
-func main() {
-	flag.Parse()
+func hashMain() {
+        cmdSet := flag.NewFlagSet("hash",flag.ExitOnError)
+	cmdSet.IntVar(&bitSize, "size", 256, "size of the hash in bits")
+	cmdSet.IntVar(&bitSize, "s", 256, "shorthand for --size")
+	cmdSet.IntVar(&jobs, "jobs", 8, "number of concurrent hashes to compute")
+	cmdSet.IntVar(&jobs, "j", 8, "shorthand for --jobs")
+	cmdSet.Parse(os.Args[2:])
 	limiter = make(chan struct{}, jobs)
 
-	args := flag.Args()
+	args := cmdSet.Args()
 
 	// act as a filter with no args...
 	if len(args) == 0 {

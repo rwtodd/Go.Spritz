@@ -15,11 +15,11 @@ type state struct {
 }
 
 func initialize(s *state) {
-        s.i = 0
-        s.j = 0
-        s.k = 0 
-        s.z = 0 
-        s.a = 0
+	s.i = 0
+	s.j = 0
+	s.k = 0
+	s.z = 0
+	s.a = 0
 	s.w = 1
 	for i := range s.s {
 		s.s[i] = byte(i)
@@ -106,7 +106,7 @@ func update(ss *state, amt int) {
 }
 
 // note: caller must ensure that ss.a is 0, or they must
-// call shuffle(ss) before calling this. 
+// call shuffle(ss) before calling this.
 func drip(ss *state) byte {
 	update(ss, 1)
 	ss.z = ss.s[ss.j+ss.s[ss.i+ss.s[ss.z+ss.k]]]

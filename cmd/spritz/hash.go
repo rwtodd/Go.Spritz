@@ -79,7 +79,7 @@ func hashFiles(fname string, fi os.FileInfo, err error) error {
 }
 
 func hashMain() {
-        cmdSet := flag.NewFlagSet("hash",flag.ExitOnError)
+	cmdSet := flag.NewFlagSet("hash", flag.ExitOnError)
 	cmdSet.IntVar(&bitSize, "size", 256, "size of the hash in bits")
 	cmdSet.IntVar(&bitSize, "s", 256, "shorthand for --size")
 	cmdSet.IntVar(&jobs, "jobs", 8, "number of concurrent hashes to compute")

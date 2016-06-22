@@ -12,7 +12,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	"go.waywardcode.com/spritz"
 	"go.waywardcode.com/terminal/password"
@@ -247,11 +246,8 @@ func cryptMain() {
 		files = append(files, "-")
 	}
 
-	var limiter = make(chan struct{}, jobs)
-	var wg sync.WaitGroup
+	limiter = make(chan struct{}, jobs)
 	wg.Add(len(files))
-
-	var hadErrors bool // is bool change atomic? surely so... need to check RWT
 
 	for _, fname := range files {
 		go func(fname string) {
@@ -260,7 +256,7 @@ func cryptMain() {
 			limiter <- struct{}{}
 			if err := process(pw, fname); err != nil {
 				fmt.Fprintf(os.Stderr, "%v\n", err)
-				hadErrors = true
+				incErr()
 			}
 			<-limiter
 		}(fname)
@@ -268,7 +264,7 @@ func cryptMain() {
 
 	wg.Wait()
 
-	if hadErrors {
+	if errCount > 0 {
 		os.Exit(1)
 	}
 }

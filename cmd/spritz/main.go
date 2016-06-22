@@ -13,6 +13,19 @@ import (
 // ----------------------
 var jobs int
 
+// -------------------
+// global error count
+// -------------------
+var errCount int
+var errMutex sync.Mutex
+
+func incErr() {
+	errMutex.Lock()
+	errCount++
+	errMutex.Unlock()
+}
+
+// -------------------------------
 // global limiter for parallelism
 // -------------------------------
 var limiter chan struct{} // limits the number of files we can work on at once

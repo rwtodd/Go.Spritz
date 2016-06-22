@@ -6,24 +6,12 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sync"
 
 	"go.waywardcode.com/spritz"
 )
 
 // Cmdline arguments ~~~~~~~~~~~~~~~~~~~~~~
 var bitSize int
-
-// Global error count ~~~~~~~~~~~~~~~~~~~~~
-var errCount int
-var errMutex sync.Mutex
-
-func incErr() {
-	errMutex.Lock()
-	errCount++
-	errMutex.Unlock()
-
-}
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

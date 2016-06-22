@@ -35,6 +35,17 @@ func odir(in string) string {
 	return filepath.Join(outdir, base)
 }
 
+// chext changes the extension of a file name
+func chext(in, ext string) string {
+	dir, base := filepath.Dir(in), filepath.Base(in)
+	idx := strings.LastIndex(base, ".")
+	if idx > 0 {
+		base = base[0:idx]
+	}
+
+	return filepath.Join(dir, base+ext)
+}
+
 func encrypt(pw, fn string) error {
 	var err error
 
@@ -55,7 +66,7 @@ func encrypt(pw, fn string) error {
 		embeddedName = append(embeddedName, byte(len(baseName)))
 		embeddedName = append(embeddedName, baseName...)
 
-		encn := odir(fn + ".spritz")
+		encn := odir(chext(fn, ".dat"))
 		fmt.Printf("%s -> %s\n", fn, encn)
 
 		if inFile, err = os.Open(fn); err != nil {

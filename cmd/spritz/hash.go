@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"go.waywardcode.com/spritz"
+	"github.com/rwtodd/spritz-go"
 )
 
 // Cmdline arguments ~~~~~~~~~~~~~~~~~~~~~~

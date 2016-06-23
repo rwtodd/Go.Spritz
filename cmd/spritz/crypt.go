@@ -13,8 +13,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"go.waywardcode.com/spritz"
-	"go.waywardcode.com/terminal/password"
+	"github.com/rwtodd/sprtiz-go"
+	"github.com/rwtodd/terminal-go/password"
 )
 
 // Command-line switches ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

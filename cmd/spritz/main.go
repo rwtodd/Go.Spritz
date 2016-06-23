@@ -5,7 +5,7 @@ import (
 	"os"
 	"sync"
 
-	"go.waywardcode.com/cmdline"
+	"github.com/rwtodd/cmdline-go"
 )
 
 // ----------------------

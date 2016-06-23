@@ -4,7 +4,7 @@
 // This package provides an implementation of hash.Hash as well as
 // cipher.Stream.  Therefore, spritz will be easy to use if you are
 // familiar with the way the standard hashes and ciphers work.
-package spritz // import "go.waywardcode.com/spritz"
+package spritz
 
 // nothing in this file is public... it is the internal machinery
 // driving the hash and stream implementations in the other files.

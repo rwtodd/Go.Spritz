@@ -13,7 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/rwtodd/sprtiz-go"
+	"github.com/rwtodd/spritz-go"
 	"github.com/rwtodd/terminal-go/password"
 )
 

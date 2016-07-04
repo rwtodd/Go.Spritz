@@ -1,0 +1,60 @@
+body {
+  background: #666;
+  font-family: helvetica, arial, sans-serif;
+  font-size: 12pt;
+  padding: 0px;
+  margin: 0px;
+}
+
+div#controls {
+  background: #d2d9e0;
+  padding: 10px;
+  min-width: 100%;
+  border-bottom: 4px solid #444;
+}
+
+div#controls h1 {
+  font-family: helvetica, arial, sans-serif;
+  font-size: 200%;
+  font-weight: normal;
+}
+
+div#controls form {
+  display: inline-block;
+  margin-bottom: 1em;
+  font-family: helvetica, arial, sans-serif;
+  font-size: 12pt;
+}
+
+div#controls > form label {
+  display: inline-block;
+  width: 5em;
+}
+
+div#controls > form input {
+  width: 10em;
+  font-family: helvetica, arial, sans-serif;
+  font-size: 12pt;
+}
+
+div#controls button {
+  font-size: 120%;
+  padding: 0.5em;
+  margin: 0.5em;
+}
+
+div#editor {
+  padding: 10px;
+}
+
+div#editor > span.notice {
+  font-family: helvetica, arial, sans-serif;
+  font-size: 14pt;
+  color: white;
+  padding: 1em;
+}
+
+div#editor > textarea {
+  font-family: helvetica, arial, sans-serif;
+  font-size: 12pt;
+}

@@ -1,0 +1,94 @@
+<html>
+<head><title>Encrypted Notes</title>
+<link rel="stylesheet" type="text/css" href="/encr.css">
+<script type="text/javascript">
+var note_loaded = false;
+var note_saved = false;
+
+function open_file() {
+  var xmlhttp = new XMLHttpRequest();
+  xmlhttp.onreadystatechange = function() {
+     if(xmlhttp.readyState == 4 && xmlhttp.status == 200) {
+         var resp = JSON.parse(xmlhttp.responseText);
+         var ta = document.getElementById("tarea");
+	 if(resp.OK) {
+		note_loaded = true;
+	 	ta.value = resp.Text;
+		note_saved = true;
+         } else {
+		note_loaded = false;
+		ta.value = resp.ErrorDetail;
+		note_saved = false;
+         }
+	 set_status();
+     }
+  };
+  xmlhttp.open("POST", "/load", true);
+  xmlhttp.setRequestHeader("Content-type", "text/plain");
+  xmlhttp.send(document.getElementById("userInput").elements['pw'].value);
+}
+
+function save_file() {
+  if(!note_loaded) { alert("nothing loaded!"); return; }
+
+  var xmlhttp = new XMLHttpRequest();
+  xmlhttp.onreadystatechange = function() {
+     if(xmlhttp.readyState == 4 && xmlhttp.status == 200) {
+         var resp = JSON.parse(xmlhttp.responseText);
+	 if(resp.OK) {
+		note_saved = true;
+         } else {
+		note_saved = false;
+		alert(resp.ErrorDetail);
+         }
+	 set_status();
+     }
+  };
+  xmlhttp.open("POST", "/save", true);
+  xmlhttp.setRequestHeader("Content-type", "text/plain");
+  var ta = document.getElementById("tarea");
+  xmlhttp.send(ta.value);
+}
+
+function set_status() {
+   var ld = document.getElementById("isloaded");
+   if(note_loaded) {
+	ld.innerHTML = "Loaded";
+   } else {
+	ld.innerHTML = "NOT Loaded";
+   }
+
+   var sv = document.getElementById("issaved");
+   if(note_saved) {
+	sv.innerHTML = "Saved";
+   } else {
+	sv.innerHTML = "NOT Saved";
+   }
+}
+
+function set_changed() {
+   if(note_saved) {
+     note_saved = false; 
+     set_status();
+   }
+}
+</script>
+</head>
+<body>
+<div id="controls">
+<h1>Encrypted Note</h1>
+<form id="userInput"> 
+<label>PW:</label><input type="text" name="pw">
+</form>
+<button onclick="open_file()">Open</button>
+<button onclick="save_file()">Save</button>
+</div>
+<div id="editor">
+<span class="notice" id="isloaded">NOT Loaded</span>
+<span class="notice" id="issaved">NOT Saved</span><br>
+<textarea id="tarea" rows="25" cols="80" onChange="set_changed()">
+This is where the text of the note will be.
+</textarea>
+</div>
+</body>
+</html>

@@ -3,9 +3,6 @@
 package main
 
 import (
-	"bytes"
-	"crypto/cipher"
-	"crypto/rand"
 	"flag"
 	"fmt"
 	"io"
@@ -49,22 +46,12 @@ func chext(in, ext string) string {
 func encrypt(pw, fn string) error {
 	var err error
 
-	// we need random data for the IV and authentication token
-	var header = make([]byte, 9)
-	header[0] = 1
-	if _, err = rand.Read(header[1:]); err != nil {
-		return err
-	}
-
 	var inFile, outFile *os.File
-	var embeddedName []byte
+	var embeddedName string
 	if fn == "-" {
 		inFile, outFile = os.Stdin, os.Stdout
-		embeddedName = append(embeddedName, 0)
 	} else {
-		baseName := []byte(filepath.Base(fn))
-		embeddedName = append(embeddedName, byte(len(baseName)))
-		embeddedName = append(embeddedName, baseName...)
+		embeddedName = filepath.Base(fn)
 
 		encn := odir(chext(fn, ".dat"))
 		fmt.Printf("%s -> %s\n", fn, encn)
@@ -81,17 +68,10 @@ func encrypt(pw, fn string) error {
 		defer outFile.Close()
 	}
 
-	outFile.Write([]byte{1})
-	outFile.Write(header[1:5]) // write the IV unencrypted!
-
-	writer := &cipher.StreamWriter{S: spritz.NewStream(pw, header[1:5]), W: outFile}
-	_, err = writer.Write(header[5:])                   // write the authentication token
-	_, err2 := writer.Write(spritz.Sum(32, header[5:])) // write the hash of the token
-	_, err3 := writer.Write(embeddedName)
-	if err != nil || err2 != nil || err3 != nil {
-		return fmt.Errorf("Couldn't write the file header!")
+	writer, err := spritz.WrapWriter(outFile, pw, embeddedName)
+	if err != nil {
+		return err
 	}
-
 	_, err = io.Copy(writer, inFile)
 	return err
 }
@@ -114,40 +94,8 @@ func initDecryption(pw, fn string) (io.Reader, *os.File, string, error) {
 		}
 	}
 
-	header := make([]byte, 5)
-	if _, err = io.ReadFull(inFile, header); err != nil {
-		return nil, inFile, "", err
-	}
-
-	// check the first byte...
-	if header[0] != 1 {
-		return nil, inFile, "", fmt.Errorf("%s Corrupted file.", fn)
-	}
-
-	reader := &cipher.StreamReader{S: spritz.NewStream(pw, header[1:]), R: inFile}
-
-	encheader := make([]byte, 9)
-	if _, err = io.ReadFull(reader, encheader); err != nil {
-		return reader, inFile, "", err
-	}
-
-	check := spritz.Sum(32, encheader[0:4])
-	if !bytes.Equal(check, encheader[4:8]) {
-		return reader, inFile, "", fmt.Errorf("%s Bad password or corrupted file!", fn)
-	}
-
-	// input looks good, so set up the output
-	// get the filename, if any, from the file:
-	decn := ""
-	if encheader[8] > 0 {
-		decnBytes := make([]byte, encheader[8])
-		if _, err = io.ReadFull(reader, decnBytes); err != nil {
-			return reader, inFile, "", err
-		}
-		decn = string(decnBytes)
-	}
-
-	return reader, inFile, decn, nil
+	rdr, decn, err := spritz.WrapReader(inFile, pw)
+	return rdr, inFile, decn, err
 }
 
 func check(pw, fn string) error {

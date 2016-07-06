@@ -30,7 +30,7 @@ func main() {
 		return
 	}
 
-	loc := resource.NewPathLocator(nil, true)
+	loc := resource.NewPathLocator([]string{"."}, true)
 	rscBase, err = loc.Path("github.com/rwtodd/spritz-go/cmd/encrnote")
 	if err != nil {
 		log.Fatal(err)

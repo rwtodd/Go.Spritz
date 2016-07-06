@@ -9,7 +9,9 @@ import (
 	"net/http"
 	"net/http/fcgi"
 	"os"
+	"path/filepath"
 
+	"github.com/rwtodd/apputil-go/resource"
 	"github.com/rwtodd/spritz-go"
 )
 
@@ -17,11 +19,21 @@ var local = flag.String("local", "", "serve as webserver on this localhost port 
 var fname = flag.String("input", "", "use the given input file")
 var pw string // the password of the loaded file
 
+// rscBase is the base path of our resources (static files, etc...)
+var rscBase string
+
 func main() {
+	var err error
 	flag.Parse()
 	if len(*fname) == 0 {
 		log.Fatal("Must give an -input filename!")
 		return
+	}
+
+	loc := resource.NewPathLocator(nil, true)
+	rscBase, err = loc.Path("github.com/rwtodd/spritz-go/cmd/encrnote")
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	http.HandleFunc("/", mainHandler)
@@ -29,7 +41,6 @@ func main() {
 	http.HandleFunc("/load", loadHandler)
 	http.HandleFunc("/save", saveHandler)
 
-	var err error
 	if *local != "" {
 		err = http.ListenAndServe("localhost:"+*local, nil)
 	} else {
@@ -41,11 +52,11 @@ func main() {
 }
 
 func mainHandler(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "index.html")
+	http.ServeFile(w, r, filepath.Join(rscBase, "index.html"))
 }
 
 func cssHandler(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "encr.css")
+	http.ServeFile(w, r, filepath.Join(rscBase, "encr.css"))
 }
 
 type response struct {

@@ -5,7 +5,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/rwtodd/cmdline-go"
+	"github.com/rwtodd/apputil-go/cmdline"
 )
 
 // ----------------------

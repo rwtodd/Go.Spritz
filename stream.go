@@ -12,6 +12,8 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io"
+
+	"github.com/rwtodd/errs-go"
 )
 
 func (s *state) XORKeyStream(dst, src []byte) {
@@ -111,9 +113,7 @@ func WrapWriter(sink io.Writer, pw string, origfn string) (io.Writer, error) {
 	// we need random data for the IV and authentication token
 	var header = make([]byte, 9)
 	header[0] = 1
-	if _, err := rand.Read(header[1:]); err != nil {
-		return nil, err
-	}
+	_, err1 := rand.Read(header[1:])
 
 	var namebytes []byte
 	namebytes = append(namebytes, byte(len(origfn)))
@@ -123,12 +123,9 @@ func WrapWriter(sink io.Writer, pw string, origfn string) (io.Writer, error) {
 	sink.Write(header[1:5]) // write the IV unencrypted!
 
 	writer := &cipher.StreamWriter{S: NewStream(pw, header[1:5]), W: sink}
-	_, err := writer.Write(header[5:])           // write the authentication token
-	_, err2 := writer.Write(Sum(32, header[5:])) // write the hash of the token
-	_, err3 := writer.Write(namebytes)
-	if err != nil || err2 != nil || err3 != nil {
-		return nil, fmt.Errorf("Couldn't write the file header!")
-	}
+	_, err2 := writer.Write(header[5:])           // write the authentication token
+	_, err3 := writer.Write(Sum(32, header[5:])) // write the hash of the token
+	_, err4 := writer.Write(namebytes)
 
-	return writer, nil
+	return writer, errs.First("Writing encryption header", err1, err2, err3, err4) 
 }

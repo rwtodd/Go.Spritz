@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/rwtodd/errs-go"
+	"github.com/rwtodd/apputil-go/errs"
 )
 
 func (s *state) XORKeyStream(dst, src []byte) {

@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"net/http/fcgi"
 	"os"
 	"path/filepath"
 
@@ -15,8 +14,9 @@ import (
 	"github.com/rwtodd/spritz-go"
 )
 
-var local = flag.String("local", "", "serve as webserver on this localhost port (e.g., 8000)")
+var port = flag.String("local", "8000", "serve pages on this localhost port")
 var fname = flag.String("input", "", "use the given input file")
+var help bool
 var pw string // the password of the loaded file
 
 // rscBase is the base path of our resources (static files, etc...)
@@ -24,7 +24,15 @@ var rscBase string
 
 func main() {
 	var err error
+	flag.BoolVar(&help, "help", false, "print this usage information")
+	flag.BoolVar(&help, "h", false, "print this usage information")
 	flag.Parse()
+
+	if help {
+		flag.Usage()
+		os.Exit(1)
+	}
+
 	if len(*fname) == 0 {
 		log.Fatal("Must give an -input filename!")
 		return
@@ -41,12 +49,7 @@ func main() {
 	http.HandleFunc("/load", loadHandler)
 	http.HandleFunc("/save", saveHandler)
 
-	if *local != "" {
-		err = http.ListenAndServe("localhost:"+*local, nil)
-	} else {
-		err = fcgi.Serve(nil, nil)
-	}
-	if err != nil {
+	if err = http.ListenAndServe("localhost:"+*port, nil); err != nil {
 		log.Fatal(err)
 	}
 }

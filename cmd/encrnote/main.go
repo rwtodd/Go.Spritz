@@ -14,7 +14,7 @@ import (
 	"github.com/rwtodd/spritz-go"
 )
 
-var port = flag.String("local", "8000", "serve pages on this localhost port")
+var port = flag.String("port", "8000", "serve pages on this localhost port")
 var fname = flag.String("input", "", "use the given input file")
 var help bool
 var pw string // the password of the loaded file

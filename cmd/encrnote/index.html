@@ -1,53 +1,47 @@
 <html>
 <head><title>Encrypted Notes</title>
+<link rel="stylesheet" href="//code.jquery.com/ui/1.12.0/themes/base/jquery-ui.css">
 <link rel="stylesheet" type="text/css" href="/encr.css">
+<script type="text/javascript" src="https://code.jquery.com/jquery-3.1.0.min.js"></script>
+<script type="text/javascript" src="https://code.jquery.com/ui/1.12.0/jquery-ui.js"></script>
 <script type="text/javascript">
 var note_loaded = false;
 var note_saved = false;
 
 function open_file() {
-  var xmlhttp = new XMLHttpRequest();
-  xmlhttp.onreadystatechange = function() {
-     if(xmlhttp.readyState == 4 && xmlhttp.status == 200) {
-         var resp = JSON.parse(xmlhttp.responseText);
-         var ta = document.getElementById("tarea");
-	 if(resp.OK) {
-		note_loaded = true;
-	 	ta.value = resp.Text;
-		note_saved = true;
-         } else {
-		note_loaded = false;
-		ta.value = resp.ErrorDetail;
-		note_saved = false;
-         }
-	 set_status();
-     }
-  };
-  xmlhttp.open("POST", "/load", true);
-  xmlhttp.setRequestHeader("Content-type", "text/plain");
-  xmlhttp.send(document.getElementById("userInput").elements['pw'].value);
+  $.post("/load", 
+         document.getElementById("userInput").elements['pw'].value,
+         function(resp) {
+            var ta = document.getElementById("tarea");
+            if(resp.OK) {
+                 note_loaded = true;
+                 ta.value = resp.Text;
+                 note_saved = true;
+            } else {
+                 note_loaded = false;
+                 ta.value = resp.ErrorDetail;
+                 note_saved = false;
+            }
+            set_status();
+          },
+         "json");
 }
 
 function save_file() {
   if(!note_loaded) { alert("nothing loaded!"); return; }
 
-  var xmlhttp = new XMLHttpRequest();
-  xmlhttp.onreadystatechange = function() {
-     if(xmlhttp.readyState == 4 && xmlhttp.status == 200) {
-         var resp = JSON.parse(xmlhttp.responseText);
-	 if(resp.OK) {
-		note_saved = true;
-         } else {
-		note_saved = false;
-		alert(resp.ErrorDetail);
-         }
-	 set_status();
-     }
-  };
-  xmlhttp.open("POST", "/save", true);
-  xmlhttp.setRequestHeader("Content-type", "text/plain");
-  var ta = document.getElementById("tarea");
-  xmlhttp.send(ta.value);
+  $.post("/save",
+         $('#tarea').val(),
+         function(resp) {
+           if(resp.OK) {
+              note_saved = true;
+           } else {
+             note_saved = false;
+             alert(resp.ErrorDetail);
+           }
+           set_status();
+         },
+         "json"); 
 }
 
 function set_status() {
@@ -72,6 +66,11 @@ function set_changed() {
      set_status();
    }
 }
+
+$(document).ready(function() {
+   $("#tarea").resizable({handles: "e,s,se"});
+   $("#controls").resizable({handles: "s"});
+});
 </script>
 </head>
 <body>

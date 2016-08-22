@@ -34,7 +34,7 @@ func (s *state) XORKeyStream(dst, src []byte) {
 //
 // The password string will be hashed to 256-bits, and the
 // initialization vector can be as long as desired.
-func NewStream(password string, iv []byte) cipher.Stream {
+func NewStream(password string, iv []byte, iterations int) cipher.Stream {
 	crypto := new(state)
 	initialize(crypto)
 	if len(iv) > 0 {
@@ -45,7 +45,7 @@ func NewStream(password string, iv []byte) cipher.Stream {
 	keyBytes := make([]byte, 128)
 	dripMany(crypto, keyBytes)
 
-	for idx := 0; idx < 5000; idx++ {
+	for idx := 0; idx < iterations; idx++ {
 		initialize(crypto)
 		absorbMany(crypto, keyBytes)
 		absorbStop(crypto)
@@ -71,12 +71,18 @@ func WrapReader(src io.Reader, pw string) (rdr io.Reader, fn string, err error) 
 		return
 	}
 
-	// check the first byte...
-	if header[0] != 1 {
+	// check the first byte for the version number
+	var stream cipher.Stream
+	switch header[0] {
+	case 1:
+		stream = NewStream(pw, header[1:], 5000)
+	case 2:
+		stream = NewStream(pw, header[1:], 500)
+	default:
 		return
 	}
 
-	rdr = &cipher.StreamReader{S: NewStream(pw, header[1:]), R: src}
+	rdr = &cipher.StreamReader{S: stream, R: src}
 
 	encheader := make([]byte, 9)
 	if _, err = io.ReadFull(rdr, encheader); err != nil {
@@ -122,10 +128,10 @@ func WrapWriter(sink io.Writer, pw string, origfn string) (io.Writer, error) {
 	sink.Write([]byte{1})   // write output version number
 	sink.Write(header[1:5]) // write the IV unencrypted!
 
-	writer := &cipher.StreamWriter{S: NewStream(pw, header[1:5]), W: sink}
-	_, err2 := writer.Write(header[5:])           // write the authentication token
+	writer := &cipher.StreamWriter{S: NewStream(pw, header[1:5], 5000), W: sink}
+	_, err2 := writer.Write(header[5:])          // write the authentication token
 	_, err3 := writer.Write(Sum(32, header[5:])) // write the hash of the token
 	_, err4 := writer.Write(namebytes)
 
-	return writer, errs.First("Writing encryption header", err1, err2, err3, err4) 
+	return writer, errs.First("Writing encryption header", err1, err2, err3, err4)
 }

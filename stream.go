@@ -92,6 +92,83 @@ func readV1Header(src io.Reader, pw string) (rdr io.Reader, fn string, err error
 	return
 }
 
+// hash and re-hash the same data a few times during keygen
+func rehashKey(cipher *state, iv []byte, tmp []byte) {
+	for idx := 0; idx < 20; idx++ {
+		dripMany(cipher, tmp)
+		absorbMany(cipher, iv)
+		absorbStop(cipher)
+		absorbMany(cipher, tmp)
+	}
+}
+
+// readHeader understands all header types except V1... see
+// readV1Header() for that.
+func readHeader(src io.Reader, firstByte byte, pw string) (rdr io.Reader, fn string, err error) {
+	fmt.Printf("pw is <%s>\n", pw)
+
+	iv := make([]byte, 4)
+	iv[0] = firstByte
+	if _, err = io.ReadFull(src, iv[1:]); err != nil {
+		return
+	}
+
+	crypto := new(state)
+	initialize(crypto)
+
+	tmp256 := Sum(2048, []byte(pw))
+	fmt.Printf("%d\n%02x\n", len(tmp256), tmp256)
+
+	absorbMany(crypto, tmp256)
+	absorbStop(crypto)
+	absorb(crypto, 4)
+
+	fmt.Printf("before: %02X\n", iv)
+	crypto.XORKeyStream(iv, iv) // decrypt IV
+	fmt.Printf("after: %02X\n", iv)
+
+	rehashKey(crypto, iv, tmp256)
+
+	rdr = &cipher.StreamReader{S: crypto, R: src}
+
+	// decrypt random bytes
+	rbytes := make([]byte, 4)
+	if _, err = io.ReadFull(rdr, rbytes); err != nil {
+		return
+	}
+
+	// skip the number stream bytes equal to rbytes[3]
+	for skip := 0; skip < int(rbytes[3]); skip++ {
+		drip(crypto)
+	}
+
+	// decrypt the version number, hash of rbytes, and fname len...
+	remaining := make([]byte, 6)
+	if _, err = io.ReadFull(rdr, remaining); err != nil {
+		return
+	}
+
+	// check the version number and hash match
+	if (remaining[0] != 2) ||
+		(!bytes.Equal(remaining[1:5], Sum(32, rbytes))) {
+		err = fmt.Errorf("Bad pw or corrupted file! %02X vs %02X vers %d",
+			remaining[1:5], Sum(32, rbytes), remaining[0])
+		return
+	}
+
+	// input looks good, so set up the output
+	// get the filename, if any, from the file:
+	if remaining[5] > 0 {
+		decnBytes := make([]byte, remaining[5])
+		if _, err = io.ReadFull(rdr, decnBytes); err != nil {
+			return
+		}
+		fn = string(decnBytes)
+	}
+
+	return
+}
+
 // WrapReader wraps an io.Reader with a decrypting
 // stream, using an IV/Password, a check that the
 // password appears correct, and an optional stored
@@ -110,7 +187,7 @@ func WrapReader(src io.Reader, pw string) (io.Reader, string, error) {
 	case 1:
 		return readV1Header(src, pw)
 	default:
-		return nil, "", fmt.Errorf("Only v1 supported at this time!")
+		return readHeader(src, header[0], pw)
 	}
 
 }

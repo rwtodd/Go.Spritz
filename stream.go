@@ -34,7 +34,7 @@ func (s *state) XORKeyStream(dst, src []byte) {
 //
 // The password string will be hashed to 256-bits, and the
 // initialization vector can be as long as desired.
-func NewStream(password string, iv []byte, iterations int) cipher.Stream {
+func newStream(password string, iv []byte, iterations int) cipher.Stream {
 	crypto := new(state)
 	initialize(crypto)
 	if len(iv) > 0 {
@@ -58,29 +58,13 @@ func NewStream(password string, iv []byte, iterations int) cipher.Stream {
 	return crypto
 }
 
-// WrapReader wraps an io.Reader with a decrypting
-// stream, using an IV/Password, a check that the
-// password appears correct, and an optional stored
-// filename of the encrypted data.  All of this is
-// in a format that agrees with the output of
-// WrapWriter, and is just an example of how one may
-// turn the encryption stream into a file format.
-func WrapReader(src io.Reader, pw string) (rdr io.Reader, fn string, err error) {
-	header := make([]byte, 5)
-	if _, err = io.ReadFull(src, header); err != nil {
+func readV1Header(src io.Reader, pw string) (rdr io.Reader, fn string, err error) {
+	iv := make([]byte, 4)
+	if _, err = io.ReadFull(src, iv); err != nil {
 		return
 	}
 
-	// check the first byte for the version number
-	var stream cipher.Stream
-	switch header[0] {
-	case 1:
-		stream = NewStream(pw, header[1:], 5000)
-	case 2:
-		stream = NewStream(pw, header[1:], 500)
-	default:
-		return
-	}
+	var stream = newStream(pw, iv, 5000)
 
 	rdr = &cipher.StreamReader{S: stream, R: src}
 
@@ -108,6 +92,29 @@ func WrapReader(src io.Reader, pw string) (rdr io.Reader, fn string, err error) 
 	return
 }
 
+// WrapReader wraps an io.Reader with a decrypting
+// stream, using an IV/Password, a check that the
+// password appears correct, and an optional stored
+// filename of the encrypted data.  All of this is
+// in a format that agrees with the output of
+// WrapWriter, and is just an example of how one may
+// turn the encryption stream into a file format.
+func WrapReader(src io.Reader, pw string) (io.Reader, string, error) {
+	header := make([]byte, 1)
+	if _, err := io.ReadFull(src, header); err != nil {
+		return nil, "", err
+	}
+
+	// check the first byte for the version number
+	switch header[0] {
+	case 1:
+		return readV1Header(src, pw)
+	default:
+		return nil, "", fmt.Errorf("Only v1 supported at this time!")
+	}
+
+}
+
 // WrapWriter wraps a writer with an encrypting
 // stream, using an IV/Password, data used to check
 // that the password appears correct, and an optional
@@ -128,7 +135,7 @@ func WrapWriter(sink io.Writer, pw string, origfn string) (io.Writer, error) {
 	sink.Write([]byte{1})   // write output version number
 	sink.Write(header[1:5]) // write the IV unencrypted!
 
-	writer := &cipher.StreamWriter{S: NewStream(pw, header[1:5], 5000), W: sink}
+	writer := &cipher.StreamWriter{S: newStream(pw, header[1:5], 5000), W: sink}
 	_, err2 := writer.Write(header[5:])          // write the authentication token
 	_, err3 := writer.Write(Sum(32, header[5:])) // write the hash of the token
 	_, err4 := writer.Write(namebytes)

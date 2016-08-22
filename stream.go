@@ -105,8 +105,6 @@ func rehashKey(cipher *state, iv []byte, tmp []byte) {
 // readHeader understands all header types except V1... see
 // readV1Header() for that.
 func readHeader(src io.Reader, firstByte byte, pw string) (rdr io.Reader, fn string, err error) {
-	fmt.Printf("pw is <%s>\n", pw)
-
 	iv := make([]byte, 4)
 	iv[0] = firstByte
 	if _, err = io.ReadFull(src, iv[1:]); err != nil {
@@ -117,15 +115,12 @@ func readHeader(src io.Reader, firstByte byte, pw string) (rdr io.Reader, fn str
 	initialize(crypto)
 
 	tmp256 := Sum(2048, []byte(pw))
-	fmt.Printf("%d\n%02x\n", len(tmp256), tmp256)
 
 	absorbMany(crypto, tmp256)
 	absorbStop(crypto)
 	absorb(crypto, 4)
 
-	fmt.Printf("before: %02X\n", iv)
 	crypto.XORKeyStream(iv, iv) // decrypt IV
-	fmt.Printf("after: %02X\n", iv)
 
 	rehashKey(crypto, iv, tmp256)
 
@@ -151,8 +146,7 @@ func readHeader(src io.Reader, firstByte byte, pw string) (rdr io.Reader, fn str
 	// check the version number and hash match
 	if (remaining[0] != 2) ||
 		(!bytes.Equal(remaining[1:5], Sum(32, rbytes))) {
-		err = fmt.Errorf("Bad pw or corrupted file! %02X vs %02X vers %d",
-			remaining[1:5], Sum(32, rbytes), remaining[0])
+		err = fmt.Errorf("Bad pw or corrupted file!")
 		return
 	}
 
@@ -200,21 +194,61 @@ func WrapReader(src io.Reader, pw string) (io.Reader, string, error) {
 // expectations of WrapReader, and is just an example of
 // how one may turn the encryption stream into a file format.
 func WrapWriter(sink io.Writer, pw string, origfn string) (io.Writer, error) {
-	// we need random data for the IV and authentication token
-	var header = make([]byte, 9)
-	header[0] = 1
-	_, err1 := rand.Read(header[1:])
+	tmp256 := Sum(2048, []byte(pw))
+
+	crypto := new(state)
+	initialize(crypto)
+
+	absorbMany(crypto, tmp256)
+	absorbStop(crypto)
+	absorb(crypto, 4)
+
+	var iv = make([]byte, 4)
+	var err1 error
+	if _, err1 = rand.Read(iv); err1 != nil {
+		return nil, err1
+	}
+
+	var encIV = make([]byte, 4)
+	crypto.XORKeyStream(encIV, iv)
+
+	if encIV[0] == 1 {
+		// can't let this look like a v1 header...
+		encIV[0] = encIV[0] ^ iv[0] ^ (iv[0] + 1)
+		iv[0] = iv[0] + 1
+	}
+
+	sink.Write(encIV) // write the manually-encrypted IV
+
+	// now re-absorb the keyhash a few times
+	rehashKey(crypto, iv, tmp256)
+
+	// let the writer encrypt everything from here on out..
+	writer := &cipher.StreamWriter{S: crypto, W: sink}
+
+	var rbytes = make([]byte, 4)
+	if _, err1 = rand.Read(rbytes); err1 != nil {
+		return nil, err1
+	}
+
+	lastbyte := int(rbytes[3])
+	var rbhash = Sum(32, rbytes)
+
+	// write rbytes, then skip lastbyte stream bytes, then
+	// write the version and the hashed rbytes
+	_, err1 = writer.Write(rbytes)
+	for lastbyte > 0 {
+		drip(crypto)
+		lastbyte--
+	}
+
+	_, err2 := writer.Write([]byte{2}) // version 2
+	_, err3 := writer.Write(rbhash)
 
 	var namebytes []byte
 	namebytes = append(namebytes, byte(len(origfn)))
 	namebytes = append(namebytes, []byte(origfn)...)
 
-	sink.Write([]byte{1})   // write output version number
-	sink.Write(header[1:5]) // write the IV unencrypted!
-
-	writer := &cipher.StreamWriter{S: newStream(pw, header[1:5], 5000), W: sink}
-	_, err2 := writer.Write(header[5:])          // write the authentication token
-	_, err3 := writer.Write(Sum(32, header[5:])) // write the hash of the token
 	_, err4 := writer.Write(namebytes)
 
 	return writer, errs.First("Writing encryption header", err1, err2, err3, err4)

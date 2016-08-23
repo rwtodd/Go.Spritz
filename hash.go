@@ -24,6 +24,24 @@ func (h *sphash) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
+// num2Bytes converts in int into a slice of
+// its bytes, with the high byte coming first
+// in the slice. N.B. this is not very efficient,
+// but realistically the answer will only have
+// one or two entries.
+func num2Bytes(n int) []byte {
+     var ans []byte
+     if n == 0 {
+     	return []byte{0};
+     }
+     for n > 0 {
+     	 ans = append([]byte{ byte(n) }, ans...)
+	 n = n >> 8
+     }
+
+     return ans
+}
+
 // Sum generates the hash based on the data absorbed
 // so far. It is possible to then continue feeding
 // the hash and generate additional sums.
@@ -33,7 +51,7 @@ func (h *sphash) Sum(b []byte) []byte {
 	state := h.spritzState
 
 	absorbStop(&state)
-	absorb(&state, byte(h.size))
+	absorbMany(&state, num2Bytes(h.size))
 	if state.a > 0 {
 		shuffle(&state)
 	}

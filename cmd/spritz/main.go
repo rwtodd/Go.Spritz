@@ -35,6 +35,7 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "Usage:  spritz (hash|crypt) [args...]")
 	fmt.Fprintln(os.Stderr, "Commands:  hash   compute the hash of inputs")
 	fmt.Fprintln(os.Stderr, "           crypt  encrypt or decrypt inputs")
+	fmt.Fprintln(os.Stderr, "           repass change password on files")
 	fmt.Fprintln(os.Stderr, "  Give '-h' arg for further help on a command")
 	os.Exit(2)
 }
@@ -51,6 +52,8 @@ func main() {
 		hashMain()
 	case "crypt":
 		cryptMain()
+	case "repass":
+		repassMain()
 	default:
 		usage()
 	}

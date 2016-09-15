@@ -30,16 +30,16 @@ func (h *sphash) Write(p []byte) (n int, err error) {
 // but realistically the answer will only have
 // one or two entries.
 func num2Bytes(n int) []byte {
-     var ans []byte
-     if n == 0 {
-     	return []byte{0};
-     }
-     for n > 0 {
-     	 ans = append([]byte{ byte(n) }, ans...)
-	 n = n >> 8
-     }
+	var ans []byte
+	if n == 0 {
+		return []byte{0}
+	}
+	for n > 0 {
+		ans = append([]byte{byte(n)}, ans...)
+		n = n >> 8
+	}
 
-     return ans
+	return ans
 }
 
 // Sum generates the hash based on the data absorbed

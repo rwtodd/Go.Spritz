@@ -12,6 +12,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io"
+	"os"
 
 	"github.com/rwtodd/apputil-go/errs"
 )
@@ -28,103 +29,53 @@ func (s *state) XORKeyStream(dst, src []byte) {
 	}
 }
 
-// NewStream creates a cipher.Stream instance for
-// a spritz cipher primed with a password and an
-// initialization vector.
-//
-// The password string will be hashed to 256-bits, and the
-// initialization vector can be as long as desired.
-func newStream(password string, iv []byte, iterations int) cipher.Stream {
-	crypto := new(state)
-	initialize(crypto)
-	if len(iv) > 0 {
-		absorbMany(crypto, iv)
-		absorbStop(crypto)
-	}
-	absorbMany(crypto, Sum(1024, []byte(password)))
-	keyBytes := make([]byte, 128)
-	dripMany(crypto, keyBytes)
+// hash and re-hash the same data a few times during keygen
+// N.B.: it destroys the IV ...
+func keygen(pw string, iv []byte, times int) []byte {
+	ans := Sum(512, []byte(pw))
+	cipher := new(state)
 
-	for idx := 0; idx < iterations; idx++ {
-		initialize(crypto)
-		absorbMany(crypto, keyBytes)
-		absorbStop(crypto)
-		absorb(crypto, 128)
-		dripMany(crypto, keyBytes)
+	for idx := 0; idx < times; idx++ {
+		initialize(cipher)
+		absorbMany(cipher, iv)
+		iv[0] = byte(iv[0] + 1)
+		if iv[0] == 0 {
+			iv[1] = byte(iv[1] + 1)
+			if iv[1] == 0 {
+				iv[2] = byte(iv[2] + 1)
+				if iv[2] == 0 {
+					iv[3] = byte(iv[3] + 1)
+				}
+			}
+		}
+		absorbStop(cipher)
+		absorbMany(cipher, ans)
+		dripMany(cipher, ans)
 	}
 
-	initialize(crypto)
-	absorbMany(crypto, keyBytes)
-	return crypto
+	return ans
 }
 
-func readV1Header(src io.Reader, pw string) (rdr io.Reader, fn string, err error) {
+// reads enough to get the "real" key out of the encrypted
+// stream
+func readHeader(src io.Reader, pw string) (realKey []byte, err error) {
 	iv := make([]byte, 4)
 	if _, err = io.ReadFull(src, iv); err != nil {
 		return
 	}
 
-	var stream = newStream(pw, iv, 5000)
+	// Stage 1... IV is encrypted against hashed pw...
+	tmp32 := Sum(32, []byte(pw))
+	xorInto(iv, tmp32) // decrypt IV
 
-	rdr = &cipher.StreamReader{S: stream, R: src}
-
-	encheader := make([]byte, 9)
-	if _, err = io.ReadFull(rdr, encheader); err != nil {
-		return
-	}
-
-	check := Sum(32, encheader[0:4])
-	if !bytes.Equal(check, encheader[4:8]) {
-		err = fmt.Errorf("Bad password or corrupted file!")
-		return
-	}
-
-	// input looks good, so set up the output
-	// get the filename, if any, from the file:
-	if encheader[8] > 0 {
-		decnBytes := make([]byte, encheader[8])
-		if _, err = io.ReadFull(rdr, decnBytes); err != nil {
-			return
-		}
-		fn = string(decnBytes)
-	}
-
-	return
-}
-
-// hash and re-hash the same data a few times during keygen
-func rehashKey(cipher *state, iv []byte, tmp []byte) {
-	for idx := 0; idx < 20; idx++ {
-		dripMany(cipher, tmp)
-		absorbMany(cipher, iv)
-		absorbStop(cipher)
-		absorbMany(cipher, tmp)
-	}
-}
-
-// readHeader understands all header types except V1... see
-// readV1Header() for that.
-func readHeader(src io.Reader, firstByte byte, pw string) (rdr io.Reader, fn string, err error) {
-	iv := make([]byte, 4)
-	iv[0] = firstByte
-	if _, err = io.ReadFull(src, iv[1:]); err != nil {
-		return
-	}
-
+	// Stage 2... generate a key from the pw + IV...
+	key := keygen(pw, iv, 20000+int(iv[3]))
 	crypto := new(state)
 	initialize(crypto)
+	absorbMany(crypto, key)
 
-	tmp256 := Sum(2048, []byte(pw))
-
-	absorbMany(crypto, tmp256)
-	absorbStop(crypto)
-	absorb(crypto, 4)
-
-	crypto.XORKeyStream(iv, iv) // decrypt IV
-
-	rehashKey(crypto, iv, tmp256)
-
-	rdr = &cipher.StreamReader{S: crypto, R: src}
+	// Stage 3... check the password...
+	rdr := &cipher.StreamReader{S: crypto, R: src}
 
 	// decrypt random bytes
 	rbytes := make([]byte, 4)
@@ -137,27 +88,22 @@ func readHeader(src io.Reader, firstByte byte, pw string) (rdr io.Reader, fn str
 		drip(crypto)
 	}
 
-	// decrypt the version number, hash of rbytes, and fname len...
-	remaining := make([]byte, 6)
+	// decrypt the hash of rbytes
+	remaining := make([]byte, 4)
 	if _, err = io.ReadFull(rdr, remaining); err != nil {
 		return
 	}
 
-	// check the version number and hash match
-	if (remaining[0] != 2) ||
-		(!bytes.Equal(remaining[1:5], Sum(32, rbytes))) {
+	// check the hash match
+	if !bytes.Equal(remaining, Sum(32, rbytes)) {
 		err = fmt.Errorf("Bad pw or corrupted file!")
 		return
 	}
 
-	// input looks good, so set up the output
-	// get the filename, if any, from the file:
-	if remaining[5] > 0 {
-		decnBytes := make([]byte, remaining[5])
-		if _, err = io.ReadFull(rdr, decnBytes); err != nil {
-			return
-		}
-		fn = string(decnBytes)
+	// Stage 4... get the real key
+	realKey = make([]byte, 64)
+	if _, err = io.ReadFull(rdr, realKey); err != nil {
+		return
 	}
 
 	return
@@ -170,20 +116,88 @@ func readHeader(src io.Reader, firstByte byte, pw string) (rdr io.Reader, fn str
 // in a format that agrees with the output of
 // WrapWriter, and is just an example of how one may
 // turn the encryption stream into a file format.
-func WrapReader(src io.Reader, pw string) (io.Reader, string, error) {
-	header := make([]byte, 1)
-	if _, err := io.ReadFull(src, header); err != nil {
-		return nil, "", err
+func WrapReader(src io.Reader, pw string) (rdr io.Reader, fn string, err error) {
+	var realKey []byte
+	realKey, err = readHeader(src, pw)
+	if err != nil {
+		return
+	}
+	crypto := new(state)
+	initialize(crypto)
+	absorbMany(crypto, realKey)
+
+	// skip the number stream bytes equal to realKey[3] + 2048
+	for skip := 0; skip < (2048 + int(realKey[3])); skip++ {
+		drip(crypto)
+	}
+	rdr = &cipher.StreamReader{S: crypto, R: src}
+
+	// get the filename, if any, from the file:
+	flen := make([]byte, 1)
+	if _, err = io.ReadFull(rdr, flen); err != nil {
+		return
+	}
+	if flen[0] > 0 {
+		decnBytes := make([]byte, flen[0])
+		if _, err = io.ReadFull(rdr, decnBytes); err != nil {
+			return
+		}
+		fn = string(decnBytes)
 	}
 
-	// check the first byte for the version number
-	switch header[0] {
-	case 1:
-		return readV1Header(src, pw)
-	default:
-		return readHeader(src, header[0], pw)
+	return
+}
+
+func xorInto(dst, src []byte) {
+	if len(dst) < len(src) {
+		panic("Bad args to xorInto!")
+	}
+	for idx, v := range src {
+		dst[idx] = dst[idx] ^ v
 	}
 
+}
+
+func writeHeader(sink io.Writer, pw string, realKey []byte) error {
+	var iv = make([]byte, 4)
+	var err1 error
+	if _, err1 = rand.Read(iv); err1 != nil {
+		return err1
+	}
+
+	encIV := Sum(32, []byte(pw))
+	xorInto(encIV, iv)
+	sink.Write(encIV) // write the manually-encrypted IV
+
+	key := keygen(pw, iv, 20000+int(iv[3]))
+	crypto := new(state)
+	initialize(crypto)
+	absorbMany(crypto, key)
+
+	// let the writer encrypt everything from here on out..
+	writer := &cipher.StreamWriter{S: crypto, W: sink}
+
+	var rbytes = make([]byte, 4)
+	if _, err1 = rand.Read(rbytes); err1 != nil {
+		return err1
+	}
+
+	lastbyte := int(rbytes[3])
+	var rbhash = Sum(32, rbytes)
+
+	// write rbytes, then skip lastbyte stream bytes, then
+	// write the version and the hashed rbytes
+	_, err1 = writer.Write(rbytes)
+
+	// skip the number stream bytes equal to rbytes[3]
+	for skip := 0; skip < lastbyte; skip++ {
+		drip(crypto)
+	}
+
+	_, err2 := writer.Write(rbhash)
+	_, err3 := writer.Write(realKey)
+
+	return errs.First("Writing encryption header", err1, err2, err3)
 }
 
 // WrapWriter wraps a writer with an encrypting
@@ -194,62 +208,54 @@ func WrapReader(src io.Reader, pw string) (io.Reader, string, error) {
 // expectations of WrapReader, and is just an example of
 // how one may turn the encryption stream into a file format.
 func WrapWriter(sink io.Writer, pw string, origfn string) (io.Writer, error) {
-	tmp256 := Sum(2048, []byte(pw))
+	var realKey = make([]byte, 64)
+	var err1 error
+	if _, err1 = rand.Read(realKey); err1 != nil {
+		return nil, err1
+	}
+
+	if err1 = writeHeader(sink, pw, realKey); err1 != nil {
+		return nil, err1
+	}
 
 	crypto := new(state)
 	initialize(crypto)
-
-	absorbMany(crypto, tmp256)
-	absorbStop(crypto)
-	absorb(crypto, 4)
-
-	var iv = make([]byte, 4)
-	var err1 error
-	if _, err1 = rand.Read(iv); err1 != nil {
-		return nil, err1
-	}
-
-	var encIV = make([]byte, 4)
-	crypto.XORKeyStream(encIV, iv)
-
-	if encIV[0] == 1 {
-		// can't let this look like a v1 header...
-		encIV[0] = encIV[0] ^ iv[0] ^ (iv[0] + 1)
-		iv[0] = iv[0] + 1
-	}
-
-	sink.Write(encIV) // write the manually-encrypted IV
-
-	// now re-absorb the keyhash a few times
-	rehashKey(crypto, iv, tmp256)
-
-	// let the writer encrypt everything from here on out..
-	writer := &cipher.StreamWriter{S: crypto, W: sink}
-
-	var rbytes = make([]byte, 4)
-	if _, err1 = rand.Read(rbytes); err1 != nil {
-		return nil, err1
-	}
-
-	lastbyte := int(rbytes[3])
-	var rbhash = Sum(32, rbytes)
-
-	// write rbytes, then skip lastbyte stream bytes, then
-	// write the version and the hashed rbytes
-	_, err1 = writer.Write(rbytes)
-	for lastbyte > 0 {
+	absorbMany(crypto, realKey)
+	// skip the number stream bytes equal to realKey[3] + 2048
+	for skip := 0; skip < (2048 + int(realKey[3])); skip++ {
 		drip(crypto)
-		lastbyte--
 	}
-
-	_, err2 := writer.Write([]byte{2}) // version 2
-	_, err3 := writer.Write(rbhash)
+	writer := &cipher.StreamWriter{S: crypto, W: sink}
 
 	var namebytes []byte
 	namebytes = append(namebytes, byte(len(origfn)))
 	namebytes = append(namebytes, []byte(origfn)...)
+	_, err2 := writer.Write(namebytes)
 
-	_, err4 := writer.Write(namebytes)
+	return writer, errs.Wrap("Writing encryption header", err2)
+}
 
-	return writer, errs.First("Writing encryption header", err1, err2, err3, err4)
+// change the password on a given file, without
+// re-encrypting the whole contents
+func RePasswd(oldpw, newpw, fn string) error {
+	fl, err := os.OpenFile(fn, os.O_RDWR, 0666)
+	defer fl.Close()
+
+	if err != nil {
+		return err
+	}
+
+	realKey, err := readHeader(fl, oldpw)
+	if err != nil {
+		return err
+	}
+
+	_, err = fl.Seek(0, os.SEEK_SET)
+	if err != nil {
+		return err
+	}
+
+	err = writeHeader(fl, newpw, realKey)
+
+	return err
 }

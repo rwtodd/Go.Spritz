@@ -3,6 +3,7 @@
 package main
 
 import (
+	"compress/zlib"
 	"flag"
 	"fmt"
 	"io"
@@ -72,7 +73,11 @@ func encrypt(pw, fn string) error {
 	if err != nil {
 		return err
 	}
-	_, err = io.Copy(writer, inFile)
+
+        compressed := zlib.NewWriter(writer)
+	_, err = io.Copy(compressed, inFile)
+        compressed.Close() // flush everything not yet written...
+
 	return err
 }
 
@@ -149,7 +154,13 @@ func decrypt(pw, fn string) error {
 		defer outFile.Close()
 	}
 
-	_, err = io.Copy(outFile, reader)
+        decomp, err := zlib.NewReader(reader)
+        if err != nil {
+		return err
+        }
+
+	_, err = io.Copy(outFile, decomp)
+        decomp.Close()
 	return err
 }
 

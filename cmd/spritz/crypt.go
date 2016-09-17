@@ -20,6 +20,7 @@ var pw string        // the password in effect
 var outdir string    // the output directory
 var decryptMode bool // should we decrypt?  Default is to encrypt.
 var checkMode bool   // should we just check the file/pw combo?
+var intname string // forced internal name
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 func odir(in string) string {
@@ -51,6 +52,7 @@ func encrypt(pw, fn string) error {
 	var embeddedName string
 	if fn == "-" {
 		inFile, outFile = os.Stdin, os.Stdout
+                embeddedName = intname
 	} else {
 		embeddedName = filepath.Base(fn)
 
@@ -166,6 +168,7 @@ func decrypt(pw, fn string) error {
 
 func cryptMain() {
 	cmdSet := flag.NewFlagSet("crypt", flag.ExitOnError)
+	cmdSet.StringVar(&intname, "iname", "", "internal name")
 	cmdSet.StringVar(&pw, "password", "", "the password to use for encryption/decryption")
 	cmdSet.StringVar(&pw, "p", "", "shorthand for --password")
 	cmdSet.StringVar(&outdir, "odir", "", "the output directory")

@@ -84,6 +84,9 @@ func readHeader(src io.Reader, pw string) (realKey []byte, err error) {
 	}
 
 	// skip the number stream bytes equal to rbytes[3]
+	if crypto.a > 0 {
+		shuffle(crypto)
+	}
 	for skip := 0; skip < int(rbytes[3]); skip++ {
 		drip(crypto)
 	}
@@ -125,10 +128,14 @@ func WrapReader(src io.Reader, pw string) (rdr io.Reader, fn string, err error) 
 	crypto := new(state)
 	initialize(crypto)
 	absorbMany(crypto, realKey)
+	if crypto.a > 0 { // RWT LATER l8r
+		shuffle(crypto)
+	}
 
 	// skip the number stream bytes equal to realKey[3] + 2048
 	for skip := 0; skip < (2048 + int(realKey[3])); skip++ {
-		drip(crypto)
+		// RWT put back: drip(crypto)
+		fmt.Printf("Dripped %d: %02X\r\n", skip, drip(crypto))
 	}
 	rdr = &cipher.StreamReader{S: crypto, R: src}
 
@@ -190,6 +197,9 @@ func writeHeader(sink io.Writer, pw string, realKey []byte) error {
 	_, err1 = writer.Write(rbytes)
 
 	// skip the number stream bytes equal to rbytes[3]
+	if crypto.a > 0 {
+		shuffle(crypto)
+	}
 	for skip := 0; skip < lastbyte; skip++ {
 		drip(crypto)
 	}
@@ -221,6 +231,9 @@ func WrapWriter(sink io.Writer, pw string, origfn string) (io.Writer, error) {
 	crypto := new(state)
 	initialize(crypto)
 	absorbMany(crypto, realKey)
+	if crypto.a > 0 {
+		shuffle(crypto)
+	}
 	// skip the number stream bytes equal to realKey[3] + 2048
 	for skip := 0; skip < (2048 + int(realKey[3])); skip++ {
 		drip(crypto)

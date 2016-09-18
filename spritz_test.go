@@ -31,12 +31,12 @@ func TestHash(t *testing.T) {
 // BenchmarkKeygen benchmarks the key generation function, to make sure
 // that it is slow enough to deter brute-force attack.
 func BenchmarkKeygen(b *testing.B) {
-        examplePW := "12345678901234" // 14-char "good" password
-	exampleIV := []byte { 4,3,2,1 } // a "random" IV
+	examplePW := "12345678901234"   // 14-char "good" password
+	exampleIV := []byte{4, 3, 2, 1} // a "random" IV
 
-        //func keygen(pw string, iv []byte, times int) []byte {
-        b.ResetTimer()
+	//func keygen(pw string, iv []byte, times int) []byte {
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		exampleIV = keygen(examplePW, exampleIV[:4], 20000 + int(exampleIV[3]))
-        }        
+		exampleIV = keygen(examplePW, exampleIV[:4], 20000+int(exampleIV[3]))
+	}
 }

@@ -76,7 +76,7 @@ func encrypt(pw, fn string) error {
 		return err
 	}
 
-        compressed := zlib.NewWriter(writer)
+        compressed,_ := zlib.NewWriterLevel(writer, zlib.BestCompression)
 	_, err = io.Copy(compressed, inFile)
         compressed.Close() // flush everything not yet written...
 

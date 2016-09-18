@@ -7,6 +7,7 @@ package main
 // quick-and-dirty utility script
 
 import (
+ "compress/zlib"
  "os"
  "io"
  "fmt"
@@ -43,8 +44,13 @@ func recode(fn string) error {
    defer outFile.Close()
 
    reader, embedName, err1 := spritz.WrapReader(inFile, pw)
+   decomp, err := zlib.NewReader(reader)
+   if err != nil { return err }
+
    writer, err2            := spritz.WrapWriter(outFile, pw, embedName)
-   _, err3                 := io.Copy(writer, reader)
+   compressed,_            := zlib.NewWriterLevel(writer, zlib.BestCompression)
+   _, err3                 := io.Copy(compressed, decomp)
+   compressed.Close() // flush everything not yet written...
    
    return errs.First("Performing re-encryption", err1, err2, err3)
    

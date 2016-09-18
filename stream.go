@@ -128,14 +128,13 @@ func WrapReader(src io.Reader, pw string) (rdr io.Reader, fn string, err error) 
 	crypto := new(state)
 	initialize(crypto)
 	absorbMany(crypto, realKey)
-	if crypto.a > 0 { // RWT LATER l8r
+	if crypto.a > 0 {
 		shuffle(crypto)
 	}
 
 	// skip the number stream bytes equal to realKey[3] + 2048
 	for skip := 0; skip < (2048 + int(realKey[3])); skip++ {
-		// RWT put back: drip(crypto)
-		fmt.Printf("Dripped %d: %02X\r\n", skip, drip(crypto))
+		drip(crypto)
 	}
 	rdr = &cipher.StreamReader{S: crypto, R: src}
 

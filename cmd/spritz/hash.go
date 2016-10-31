@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"flag"
 	"fmt"
 	"io"
@@ -12,6 +13,7 @@ import (
 
 // Cmdline arguments ~~~~~~~~~~~~~~~~~~~~~~
 var bitSize int
+var asHex bool
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -19,18 +21,15 @@ var bitSize int
 func hash(fname string) (err error) {
 	byteSize := (bitSize + 7) / 8
 	var inFile *os.File
-	var outFormat string // how we will format the output
 
 	if fname == "-" {
 		inFile = os.Stdin
-		outFormat = "%s%x\n"
 		fname = ""
 	} else {
 		if inFile, err = os.Open(fname); err != nil {
 			return
 		}
 		defer inFile.Close()
-		outFormat = "%s: %x\n"
 	}
 
 	shash := spritz.NewHash(bitSize)
@@ -39,7 +38,11 @@ func hash(fname string) (err error) {
 	}
 
 	computed := shash.Sum(make([]byte, 0, byteSize))
-	fmt.Printf(outFormat, fname, computed)
+	if asHex {
+		fmt.Printf("%s: %x\n", fname, computed)
+	} else {
+		fmt.Printf("%s: %s\n", fname, base64.StdEncoding.EncodeToString(computed))
+	}
 	return
 }
 
@@ -70,6 +73,8 @@ func hashMain() {
 	cmdSet := flag.NewFlagSet("hash", flag.ExitOnError)
 	cmdSet.IntVar(&bitSize, "size", 256, "size of the hash in bits")
 	cmdSet.IntVar(&bitSize, "s", 256, "shorthand for --size")
+	cmdSet.BoolVar(&asHex, "hex", false, "output hex instead of base64")
+	cmdSet.BoolVar(&asHex, "h", false, "shorthand for --hex")
 	cmdSet.IntVar(&jobs, "jobs", 8, "number of concurrent hashes to compute")
 	cmdSet.IntVar(&jobs, "j", 8, "shorthand for --jobs")
 	cmdSet.Parse(os.Args[2:])

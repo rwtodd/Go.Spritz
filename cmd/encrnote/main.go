@@ -10,7 +10,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/rwtodd/apputil-go/resource"
+	"github.com/rwtodd/apputil/resource"
 	"github.com/rwtodd/spritz-go"
 )
 

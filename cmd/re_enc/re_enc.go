@@ -12,8 +12,8 @@ import (
  "io"
  "fmt"
  
- "github.com/rwtodd/apputil-go/cmdline"
- "github.com/rwtodd/apputil-go/errs"
+ "github.com/rwtodd/apputil/cmdline"
+ "github.com/rwtodd/apputil/errs"
  "github.com/rwtodd/spritz-go"
 )
 

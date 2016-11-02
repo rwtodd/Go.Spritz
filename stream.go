@@ -14,7 +14,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/rwtodd/apputil-go/errs"
+	"github.com/rwtodd/apputil/errs"
 )
 
 func (s *state) XORKeyStream(dst, src []byte) {

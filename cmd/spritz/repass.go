@@ -8,7 +8,7 @@ import (
 	"os"
 
 	"github.com/rwtodd/spritz-go"
-	"github.com/rwtodd/terminal-go/password"
+	"github.com/rwtodd/apputil/password"
 )
 
 // Command-line switches ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

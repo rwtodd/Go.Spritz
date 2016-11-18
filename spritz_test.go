@@ -6,7 +6,12 @@ import (
 	"io"
 	"math/rand"
 	"testing"
+	"time"
 )
+
+func init() {
+	rand.Seed(time.Now().UTC().UnixNano())
+}
 
 // TestHash tests the 256-bit hash on the three test vecors
 // in the RC14.pdf paper defining spritz.

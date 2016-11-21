@@ -13,7 +13,7 @@ import (
 var jobs int
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "Usage:  spritz (hash|crypt) [args...]")
+	fmt.Fprintln(os.Stderr, "Usage:  spritz (hash|crypt|repass) [args...]")
 	fmt.Fprintln(os.Stderr, "Commands:  hash   compute the hash of inputs")
 	fmt.Fprintln(os.Stderr, "           crypt  encrypt or decrypt inputs")
 	fmt.Fprintln(os.Stderr, "           repass change password on files")

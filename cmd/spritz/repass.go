@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/rwtodd/spritz-go"
 	"github.com/rwtodd/apputil/password"
+	"github.com/rwtodd/spritz-go"
 )
 
 // Command-line switches ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -16,7 +16,20 @@ var opw string // the password for the existing file
 var npw string // the password for the new file
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+func repassRoutine(input chan string, errs chan uint64) {
+	var errCount uint64
+	for fname := range input {
+		if err := spritz.RePasswd(opw, npw, fname); err != nil {
+			fmt.Fprintf(os.Stderr, "Repass %s: %v\n", fname, err)
+			errCount++
+		}
+	}
+	errs <- errCount
+}
+
 func repassMain() {
+	var errCount uint64
+
 	cmdSet := flag.NewFlagSet("repass", flag.ExitOnError)
 	cmdSet.StringVar(&npw, "newpass", "", "the password to use for encryption")
 	cmdSet.StringVar(&npw, "np", "", "shorthand for --newpass")
@@ -46,7 +59,7 @@ func repassMain() {
 		}
 	}
 
-	// no filenames means act as a filter
+	// for repass, you must have a file
 	files := cmdSet.Args()
 	if len(files) == 0 {
 		fmt.Fprintln(os.Stderr, "No files given!")
@@ -54,24 +67,21 @@ func repassMain() {
 		os.Exit(1)
 	}
 
-	limiter = make(chan struct{}, jobs)
-	wg.Add(len(files))
-
-	for _, fname := range files {
-		go func(fname string) {
-			defer wg.Done()
-
-			limiter <- struct{}{}
-			if err := spritz.RePasswd(opw, npw, fname); err != nil {
-				fmt.Fprintf(os.Stderr, "%v\n", err)
-				incErr()
-			}
-			<-limiter
-		}(fname)
+	// start up the worker goroutines and feed them
+	input, errs := make(chan string, jobs), make(chan uint64, jobs)
+	for idx := 0; idx < jobs; idx++ {
+		go repassRoutine(input, errs)
 	}
 
-	wg.Wait()
+	for _, fname := range files {
+		input <- fname
+	}
 
+	// close the input channel and collect the reported error counts
+	close(input)
+	for idx := 0; idx < jobs; idx++ {
+		errCount += <-errs
+	}
 	if errCount > 0 {
 		os.Exit(1)
 	}

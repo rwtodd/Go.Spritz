@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/rwtodd/spritz-go"
 	"github.com/rwtodd/apputil/password"
+	"github.com/rwtodd/spritz-go"
 )
 
 // Command-line switches ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -20,7 +20,7 @@ var pw string        // the password in effect
 var outdir string    // the output directory
 var decryptMode bool // should we decrypt?  Default is to encrypt.
 var checkMode bool   // should we just check the file/pw combo?
-var intname string // forced internal name
+var intname string   // forced internal name
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 func odir(in string) string {
@@ -52,7 +52,7 @@ func encrypt(pw, fn string) error {
 	var embeddedName string
 	if fn == "-" {
 		inFile, outFile = os.Stdin, os.Stdout
-                embeddedName = intname
+		embeddedName = intname
 	} else {
 		embeddedName = filepath.Base(fn)
 
@@ -76,9 +76,9 @@ func encrypt(pw, fn string) error {
 		return err
 	}
 
-        compressed,_ := zlib.NewWriterLevel(writer, zlib.BestCompression)
+	compressed, _ := zlib.NewWriterLevel(writer, zlib.BestCompression)
 	_, err = io.Copy(compressed, inFile)
-        compressed.Close() // flush everything not yet written...
+	compressed.Close() // flush everything not yet written...
 
 	return err
 }
@@ -156,17 +156,31 @@ func decrypt(pw, fn string) error {
 		defer outFile.Close()
 	}
 
-        decomp, err := zlib.NewReader(reader)
-        if err != nil {
+	decomp, err := zlib.NewReader(reader)
+	if err != nil {
 		return err
-        }
+	}
 
 	_, err = io.Copy(outFile, decomp)
-        decomp.Close()
+	decomp.Close()
 	return err
 }
 
+// processRoutine is the worker goroutine that processes files and keeps track of an error count
+func processRoutine(proc func(string, string) error, input chan string, errs chan uint64) {
+	var errCount uint64
+	for fname := range input {
+		if err := proc(pw, fname); err != nil {
+			fmt.Fprintf(os.Stderr, "Processing %s: %v\n", fname, err)
+			errCount++
+		}
+	}
+	errs <- errCount
+}
+
 func cryptMain() {
+	var errCount uint64
+
 	cmdSet := flag.NewFlagSet("crypt", flag.ExitOnError)
 	cmdSet.StringVar(&intname, "iname", "", "internal name")
 	cmdSet.StringVar(&pw, "password", "", "the password to use for encryption/decryption")
@@ -219,24 +233,21 @@ func cryptMain() {
 		files = append(files, "-")
 	}
 
-	limiter = make(chan struct{}, jobs)
-	wg.Add(len(files))
-
-	for _, fname := range files {
-		go func(fname string) {
-			defer wg.Done()
-
-			limiter <- struct{}{}
-			if err := process(pw, fname); err != nil {
-				fmt.Fprintf(os.Stderr, "%v\n", err)
-				incErr()
-			}
-			<-limiter
-		}(fname)
+	// create the processing goRoutines and feed them
+	input, errs := make(chan string, jobs), make(chan uint64, jobs)
+	for idx := 0; idx < jobs; idx++ {
+		go processRoutine(process, input, errs)
 	}
 
-	wg.Wait()
+	for _, fname := range files {
+		input <- fname
+	}
 
+	// close the input channel and read all the accumulated errors
+	close(input)
+	for idx := 0; idx < jobs; idx++ {
+		errCount += <-errs
+	}
 	if errCount > 0 {
 		os.Exit(1)
 	}

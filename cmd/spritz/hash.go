@@ -46,30 +46,20 @@ func hash(fname string) (err error) {
 	return
 }
 
-// hashFiles creates a goroutine to hash files
-func hashFiles(fname string, fi os.FileInfo, err error) error {
-	if err != nil {
-		return err
+func hashRoutine(input chan string, errs chan uint64) {
+	var errCount uint64
+	for fname := range input {
+		if err := hash(fname); err != nil {
+			fmt.Fprintf(os.Stderr, "Hashing %s: %v\n", fname, err)
+			errCount++
+		}
 	}
-
-	if fi.Mode().IsRegular() {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
-			limiter <- struct{}{} // take a slot
-			if err := hash(fname); err != nil {
-				fmt.Fprintf(os.Stderr, "%v\n", err)
-				incErr()
-			}
-			<-limiter // release the slot
-		}()
-	}
-
-	return nil
+	errs <- errCount
 }
 
 func hashMain() {
+	var errCount uint64
+
 	cmdSet := flag.NewFlagSet("hash", flag.ExitOnError)
 	cmdSet.IntVar(&bitSize, "size", 256, "size of the hash in bits")
 	cmdSet.IntVar(&bitSize, "s", 256, "shorthand for --size")
@@ -78,27 +68,43 @@ func hashMain() {
 	cmdSet.IntVar(&jobs, "jobs", 8, "number of concurrent hashes to compute")
 	cmdSet.IntVar(&jobs, "j", 8, "shorthand for --jobs")
 	cmdSet.Parse(os.Args[2:])
-	limiter = make(chan struct{}, jobs)
+
+	input, errs := make(chan string, jobs), make(chan uint64, jobs)
+	for idx := 0; idx < jobs; idx++ {
+		go hashRoutine(input, errs)
+	}
 
 	args := cmdSet.Args()
 
 	// act as a filter with no args...
 	if len(args) == 0 {
-		if err := hash("-"); err != nil {
-			fmt.Fprintf(os.Stderr, "%v\n", err)
-			incErr()
-		}
+		input <- "-"
 	}
 
 	// process any filenames we were given
 	for _, fname := range args {
-		if err := filepath.Walk(fname, hashFiles); err != nil {
+		err := filepath.Walk(fname, func(fname string, fi os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+
+			if fi.Mode().IsRegular() {
+				input <- fname
+			}
+			return nil
+		})
+
+		if err != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
-			incErr()
+			errCount++
 		}
 	}
 
-	wg.Wait() // sit here until everyting is reported
+	// close the input channel and collect the worker goroutines' error counts.
+	close(input)
+	for idx := 0; idx < jobs; idx++ {
+		errCount += <-errs
+	}
 	if errCount > 0 {
 		os.Exit(1)
 	}

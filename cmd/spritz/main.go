@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"sync"
 
 	"github.com/rwtodd/apputil/cmdline"
 )
@@ -12,24 +11,6 @@ import (
 // global command args
 // ----------------------
 var jobs int
-
-// -------------------
-// global error count
-// -------------------
-var errCount int
-var errMutex sync.Mutex
-
-func incErr() {
-	errMutex.Lock()
-	errCount++
-	errMutex.Unlock()
-}
-
-// -------------------------------
-// global limiter for parallelism
-// -------------------------------
-var limiter chan struct{} // limits the number of files we can work on at once
-var wg sync.WaitGroup     // this is how we'll make sure all goroutines are done
 
 func usage() {
 	fmt.Fprintln(os.Stderr, "Usage:  spritz (hash|crypt) [args...]")

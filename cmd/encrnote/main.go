@@ -1,6 +1,7 @@
 package main
 
 import (
+	"compress/zlib"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -19,8 +20,8 @@ var fname = flag.String("input", "", "use the given input file")
 var help bool
 var pw string // the password of the loaded file
 
-// rscBase is the base path of our resources (static files, etc...)
-var rscBase string
+// rscBase is the locator for our resources (static files, etc...)
+var rscBase resource.Locator
 
 func main() {
 	var err error
@@ -38,11 +39,8 @@ func main() {
 		return
 	}
 
-	loc := resource.NewPathLocator([]string{"."}, true)
-	rscBase, err = loc.Path("github.com/rwtodd/spritz-go/cmd/encrnote")
-	if err != nil {
-		log.Fatal(err)
-	}
+	rscBase = resource.NewPathLocator([]string{"."},
+		filepath.Join("github.com", "rwtodd", "spritz-go", "cmd", "encrnote", "ui"))
 
 	http.HandleFunc("/", mainHandler)
 	http.HandleFunc("/encr.css", cssHandler)
@@ -55,11 +53,19 @@ func main() {
 }
 
 func mainHandler(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, filepath.Join(rscBase, "index.html"))
+	if index, err := rscBase.Path("index.html"); err == nil {
+		http.ServeFile(w, r, index)
+	} else {
+		log.Fatal(err)
+	}
 }
 
 func cssHandler(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, filepath.Join(rscBase, "encr.css"))
+	if css, err := rscBase.Path("encr.css"); err == nil {
+		http.ServeFile(w, r, css)
+	} else {
+		log.Fatal(err)
+	}
 }
 
 type response struct {
@@ -98,7 +104,14 @@ func loadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	docbytes, err := ioutil.ReadAll(decrypted)
+	decomp, err := zlib.NewReader(decrypted)
+	if err != nil {
+		writeErr(err, w)
+		return
+	}
+
+	docbytes, err := ioutil.ReadAll(decomp)
+	decomp.Close()
 	if err != nil {
 		writeErr(err, w)
 		return
@@ -145,7 +158,10 @@ func saveHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err = writer.Write(docbytes); err != nil {
+	compressed, _ := zlib.NewWriterLevel(writer, zlib.BestCompression)
+	_, err = compressed.Write(docbytes)
+	compressed.Close()
+	if err != nil {
 		writeErr(err, w)
 		return
 	}

@@ -17,6 +17,7 @@ function open_file() {
                  note_loaded = true;
                  ta.value = resp.Text;
                  note_saved = true;
+                 document.getElementById("userInput").style.visibility = 'hidden';
             } else {
                  note_loaded = false;
                  ta.value = resp.ErrorDetail;

@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/rwtodd/spritz-go"
+	spritz "github.com/rwtodd/Go.Spritz"
 )
 
 // Cmdline arguments ~~~~~~~~~~~~~~~~~~~~~~

@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/rwtodd/apputil/password"
-	"github.com/rwtodd/spritz-go"
+	"github.com/rwtodd/Go.AppUtil/password"
+	spritz "github.com/rwtodd/Go.Spritz"
 )
 
 // Command-line switches ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

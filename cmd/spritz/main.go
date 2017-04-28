@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/rwtodd/apputil/cmdline"
+	"github.com/rwtodd/Go.AppUtil/cmdline"
 )
 
 // ----------------------

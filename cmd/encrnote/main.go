@@ -11,8 +11,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/rwtodd/apputil/resource"
-	"github.com/rwtodd/spritz-go"
+	"github.com/rwtodd/Go.AppUtil/resource"
+	spritz "github.com/rwtodd/Go.Spritz"
 )
 
 var port = flag.String("port", "8000", "serve pages on this localhost port")

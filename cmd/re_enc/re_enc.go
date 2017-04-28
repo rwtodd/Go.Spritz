@@ -12,9 +12,9 @@ import (
  "io"
  "fmt"
  
- "github.com/rwtodd/apputil/cmdline"
- "github.com/rwtodd/apputil/errs"
- "github.com/rwtodd/spritz-go"
+ "github.com/rwtodd/Go.AppUtil/cmdline"
+ "github.com/rwtodd/Go.AppUtil/errs"
+ spritz "github.com/rwtodd/Go.Spritz"
 )
 
 const (

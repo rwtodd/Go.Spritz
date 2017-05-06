@@ -7,14 +7,13 @@ package main
 // quick-and-dirty utility script
 
 import (
- "compress/zlib"
  "os"
  "io"
  "fmt"
- 
+
  "github.com/rwtodd/Go.AppUtil/cmdline"
  "github.com/rwtodd/Go.AppUtil/errs"
- spritz "github.com/rwtodd/Go.Spritz"
+ "github.com/rwtodd/Go.Spritz/spritz"
 )
 
 const (
@@ -35,7 +34,7 @@ func recode(fn string) error {
       return errs.Wrap("Opening src", err)
    }
    defer inFile.Close()
-   
+
    if outFile, err = os.OpenFile(fn,
       os.O_WRONLY|os.O_CREATE|os.O_TRUNC,
       0666) ; err != nil {
@@ -44,16 +43,11 @@ func recode(fn string) error {
    defer outFile.Close()
 
    reader, embedName, err1 := spritz.WrapReader(inFile, pw)
-   decomp, err := zlib.NewReader(reader)
-   if err != nil { return err }
-
    writer, err2            := spritz.WrapWriter(outFile, pw, embedName)
-   compressed,_            := zlib.NewWriterLevel(writer, zlib.BestCompression)
-   _, err3                 := io.Copy(compressed, decomp)
-   compressed.Close() // flush everything not yet written...
-   
+   _, err3                 := io.Copy(writer, reader)
+
    return errs.First("Performing re-encryption", err1, err2, err3)
-   
+
 }
 
 func main() {
@@ -64,7 +58,7 @@ func main() {
 	  fmt.Println(fname)
 	  if err := recode(fname); err != nil {
 	     fmt.Fprintf(os.Stderr, "%v\n", err)
- 	  }
+	  }
   }
-  
+
 }

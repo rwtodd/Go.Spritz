@@ -1,7 +1,6 @@
 package main
 
 import (
-	"compress/zlib"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -12,7 +11,7 @@ import (
 	"path/filepath"
 
 	"github.com/rwtodd/Go.AppUtil/resource"
-	spritz "github.com/rwtodd/Go.Spritz"
+	"github.com/rwtodd/Go.Spritz/spritz"
 )
 
 var port = flag.String("port", "8000", "serve pages on this localhost port")
@@ -40,7 +39,7 @@ func main() {
 	}
 
 	rscBase = resource.NewPathLocator([]string{"."},
-		filepath.Join("github.com", "rwtodd", "spritz-go", "cmd", "encrnote", "ui"))
+		filepath.Join("github.com", "rwtodd", "Go.Spritz", "cmd", "encrnote", "ui"))
 
 	http.HandleFunc("/", mainHandler)
 	http.HandleFunc("/encr.css", cssHandler)
@@ -104,14 +103,7 @@ func loadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	decomp, err := zlib.NewReader(decrypted)
-	if err != nil {
-		writeErr(err, w)
-		return
-	}
-
-	docbytes, err := ioutil.ReadAll(decomp)
-	decomp.Close()
+	docbytes, err := ioutil.ReadAll(decrypted)
 	if err != nil {
 		writeErr(err, w)
 		return
@@ -158,9 +150,7 @@ func saveHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	compressed, _ := zlib.NewWriterLevel(writer, zlib.BestCompression)
-	_, err = compressed.Write(docbytes)
-	compressed.Close()
+	_, err = writer.Write(docbytes)
 	if err != nil {
 		writeErr(err, w)
 		return

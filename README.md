@@ -1,9 +1,9 @@
-# spritz_go
+# Go.Spritz
 Golang spritz cipher (see [RS14.pdf][2])
 
 ## Spritz Cipher
 I have implemented the spritz cipher for hashing and encryption in several 
-languages in my [spritz_cipher repo][1].  There is even a golang version
+languages in my [spritz\_cipher repo][1].  There is even a golang version
 there, but it doesn't provide a library and only does hashing.
 
 This is a fully-featured golang implementation of spritz, which
@@ -16,13 +16,13 @@ encrypting/decrypting files.
 ### Library
 You can get the spritz library by:
 
-    go get github.com/rwtodd/Go.Spritz
+    go get github.com/rwtodd/Go.Spritz/spritz
 
 As I mentioned, it provides standard interfaces, and is
 easy to use if you know golang's standard hashes and streams.  For instance,
 here is some example code for hashing:
 
-    import spritz "github.com/rwtodd/Go.Spritz"
+    import "github.com/rwtodd/Go.Spritz/spritz"
 
     // 256-bit hash of a byte slice:
     hash := spritz.Sum(256, buffer)

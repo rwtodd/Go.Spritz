@@ -3,7 +3,6 @@
 package main
 
 import (
-	"compress/zlib"
 	"flag"
 	"fmt"
 	"io"
@@ -12,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/rwtodd/Go.AppUtil/password"
-	spritz "github.com/rwtodd/Go.Spritz"
+	"github.com/rwtodd/Go.Spritz/spritz"
 )
 
 // Command-line switches ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -76,10 +75,7 @@ func encrypt(pw, fn string) error {
 		return err
 	}
 
-	compressed, _ := zlib.NewWriterLevel(writer, zlib.BestCompression)
-	_, err = io.Copy(compressed, inFile)
-	compressed.Close() // flush everything not yet written...
-
+	_, err = io.Copy(writer, inFile)
 	return err
 }
 
@@ -156,13 +152,7 @@ func decrypt(pw, fn string) error {
 		defer outFile.Close()
 	}
 
-	decomp, err := zlib.NewReader(reader)
-	if err != nil {
-		return err
-	}
-
-	_, err = io.Copy(outFile, decomp)
-	decomp.Close()
+	_, err = io.Copy(outFile, reader)
 	return err
 }
 

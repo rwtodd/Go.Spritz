@@ -2,6 +2,7 @@ package spritz
 
 import (
 	"bytes"
+	"encoding/base64"
 	"io"
 	"math/rand"
 	"testing"
@@ -11,6 +12,12 @@ import (
 func init() {
 	rand.Seed(time.Now().UTC().UnixNano())
 }
+
+// TestLargeHashes tests the huge hashes 
+// func TestLargeHash(t *testing.T) {
+// 	ans1024 := "mODbEBMQN0e4fNQkMpQAFXRnJb+m4qJ4Jj/ZD85JEnqkgx0guarutyDDNUC6kDvDxjoR1jNfDIa8zf6nWNUdypzFTYQwL34Ci/SWcRq78Kzvod+oGZSTvpMuznWPo2nzVY32LPY/CI4E=" // test of arc
+// 	ans4096 := "/51nef3y/1tdjXK2VFYoV/gSghU2nsOHLRoGnE" // large-hash
+// }
 
 // TestHash tests the 256-bit hash on the three test vecors
 // in the RC14.pdf paper defining spritz.

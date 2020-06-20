@@ -44,5 +44,5 @@ The hasher is a concurrent program, which will hash up to 8 files at once as it 
 through the list.  It takes a "--size" parameter to get the hash size in bits.  
 The encrypt/decrypt program is also concurrent. 
 
-[1]: https://github.com/waywardcode/spritz_cipher
+[1]: https://github.com/rwtodd/spritz_cipher
 [2]: http://people.csail.mit.edu/rivest/pubs/RS14.pdf
